@@ -347,6 +347,58 @@
       ? `${followUps.overdue} overdue | ${followUps.dueToday} today | ${followUps.dueSoon} soon`
       : '1 overdue | 2 today | 3 soon'
   );
+
+  let followUpCards = $derived.by(() => {
+    const nowMs = Date.now();
+    const nowDate = new Date(nowMs);
+    const weekAheadMs = nowMs + 7 * 86_400_000;
+
+    return [...$activityLogs]
+      .filter(log => {
+        if (!log.followUpDue || log.followUpDone) return false;
+        const dueMs = Number(log.followUpDue.microsSinceUnixEpoch / 1000n);
+        return dueMs < weekAheadMs;
+      })
+      .sort((a, b) => {
+        const aMs = Number(a.followUpDue!.microsSinceUnixEpoch / 1000n);
+        const bMs = Number(b.followUpDue!.microsSinceUnixEpoch / 1000n);
+        return aMs - bMs;
+      })
+      .slice(0, 10)
+      .map(log => {
+        const dueMs = Number(log.followUpDue!.microsSinceUnixEpoch / 1000n);
+        const dueDate = new Date(dueMs);
+        const isSameDay =
+          dueDate.getUTCFullYear() === nowDate.getUTCFullYear() &&
+          dueDate.getUTCMonth() === nowDate.getUTCMonth() &&
+          dueDate.getUTCDate() === nowDate.getUTCDate();
+        const isOverdue = dueMs < nowMs && !isSameDay;
+
+        return {
+          id: log.id,
+          entityType: log.entityType,
+          entityId: String(log.entityId),
+          detail: log.detail || `${log.action} on ${log.entityType}`,
+          dueLabel: isSameDay ? 'Today' : isOverdue
+            ? `${Math.floor((nowMs - dueMs) / 86_400_000)}d overdue`
+            : `in ${Math.ceil((dueMs - nowMs) / 86_400_000)}d`,
+          urgency: isOverdue ? 'overdue' : isSameDay ? 'today' : 'upcoming',
+          actor: $nicknameMap.get(String(log.actorId)) ?? 'System',
+        };
+      });
+  });
+
+  const DEMO_FOLLOWUPS = [
+    { id: 101n, entityType: 'Pipeline', entityId: '5', detail: 'Follow up on BAPCO Cerabar quotation', dueLabel: '2d overdue', urgency: 'overdue', actor: 'Abhie' },
+    { id: 102n, entityType: 'MoneyEvent', entityId: '3', detail: 'Chase EWA payment — INV-2025-001', dueLabel: 'Today', urgency: 'today', actor: 'System' },
+    { id: 103n, entityType: 'Pipeline', entityId: '8', detail: 'ALBA expansion project — send revised offer', dueLabel: 'Today', urgency: 'today', actor: 'Abhie' },
+    { id: 104n, entityType: 'PurchaseOrder', entityId: '2', detail: 'Check E+H delivery status for PO-2026-003', dueLabel: 'in 2d', urgency: 'upcoming', actor: 'Abhie' },
+    { id: 105n, entityType: 'Pipeline', entityId: '12', detail: 'GPIC gasket order — confirm specifications', dueLabel: 'in 5d', urgency: 'upcoming', actor: 'System' },
+  ] as const;
+
+  let displayFollowUps = $derived(
+    followUpCards.length > 0 ? followUpCards : DEMO_FOLLOWUPS as unknown as typeof followUpCards
+  );
 </script>
 
 <div class="dashboard">
@@ -575,6 +627,56 @@
         </div>
       {/each}
     </div>
+  </section>
+
+  <!-- Follow-Up Tasks -->
+  <section class="followup-section" use:enter={{ index: 6 }}>
+    <div class="section-header">
+      <h2 class="section-title">Follow-Ups</h2>
+      <div class="followup-summary-chips">
+        {#if followUps.overdue > 0}
+          <span class="followup-chip chip-overdue">{followUps.overdue} overdue</span>
+        {/if}
+        {#if followUps.dueToday > 0}
+          <span class="followup-chip chip-today">{followUps.dueToday} today</span>
+        {/if}
+        {#if followUps.dueSoon > 0}
+          <span class="followup-chip chip-upcoming">{followUps.dueSoon} upcoming</span>
+        {/if}
+      </div>
+    </div>
+
+    {#if displayFollowUps.length === 0}
+      <div class="followup-empty card">
+        <span class="followup-empty-text">No follow-ups due this week</span>
+      </div>
+    {:else}
+      <div class="followup-list">
+        {#each displayFollowUps as fu (fu.id)}
+          <div class="followup-card card" class:followup-overdue={fu.urgency === 'overdue'} class:followup-today={fu.urgency === 'today'}>
+            <div class="followup-left">
+              <span class="followup-type-badge"
+                class:badge-overdue={fu.urgency === 'overdue'}
+                class:badge-today={fu.urgency === 'today'}
+                class:badge-upcoming={fu.urgency === 'upcoming'}
+              >
+                {fu.urgency === 'overdue' ? '!' : fu.urgency === 'today' ? '*' : '○'}
+              </span>
+              <div class="followup-content">
+                <span class="followup-detail">{fu.detail}</span>
+                <span class="followup-meta">{fu.actor} · {fu.entityType}</span>
+              </div>
+            </div>
+            <span class="followup-due"
+              class:due-overdue={fu.urgency === 'overdue'}
+              class:due-today={fu.urgency === 'today'}
+            >
+              {fu.dueLabel}
+            </span>
+          </div>
+        {/each}
+      </div>
+    {/if}
   </section>
 
 </div>
@@ -1139,5 +1241,126 @@
 
   .cash-bucket-flow {
     white-space: nowrap;
+  }
+
+  /* ── Follow-Up Tasks ─────────────────────────────────────────────────── */
+
+  .followup-section {
+    grid-column: 1 / -1;
+  }
+
+  .followup-summary-chips {
+    display: flex;
+    gap: var(--sp-5);
+  }
+
+  .followup-chip {
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .chip-overdue { background: var(--coral-soft); color: var(--coral); }
+  .chip-today { background: var(--gold-glow); color: var(--gold); }
+  .chip-upcoming { background: var(--sage-soft); color: var(--sage); }
+
+  .followup-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+  }
+
+  .followup-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-13) var(--sp-16);
+    border-radius: var(--radius-md);
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+
+  .followup-card:hover {
+    transform: translateX(2px);
+  }
+
+  .followup-overdue {
+    border-left: 3px solid var(--coral);
+  }
+
+  .followup-today {
+    border-left: 3px solid var(--gold);
+  }
+
+  .followup-left {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-10);
+    flex: 1;
+    min-width: 0;
+  }
+
+  .followup-type-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+    background: var(--ink-06);
+    color: var(--ink-40);
+  }
+
+  .badge-overdue { background: var(--coral-soft); color: var(--coral); }
+  .badge-today { background: var(--gold-glow); color: var(--gold); }
+  .badge-upcoming { background: var(--sage-soft); color: var(--sage); }
+
+  .followup-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .followup-detail {
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .followup-meta {
+    font-size: 10px;
+    color: var(--ink-30);
+  }
+
+  .followup-due {
+    font-family: var(--font-data);
+    font-size: var(--text-xs);
+    color: var(--ink-40);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .due-overdue { color: var(--coral); font-weight: 600; }
+  .due-today { color: var(--gold); font-weight: 600; }
+
+  .followup-empty {
+    padding: var(--sp-21);
+    text-align: center;
+  }
+
+  .followup-empty-text {
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    color: var(--ink-30);
   }
 </style>
