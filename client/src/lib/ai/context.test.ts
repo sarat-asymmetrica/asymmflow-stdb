@@ -48,6 +48,28 @@ test('buildSystemPrompt includes operational counts and new skill guidance', () 
   assert.match(prompt, /E\+H Flow: min 12%, target 20%, max discount from target 5%/);
 });
 
+// Test that new Wave 1-8 skills are mentioned in the system prompt
+test('buildSystemPrompt includes Wave 1-8 skill references', () => {
+  const prompt = buildSystemPrompt(
+    {
+      identity: 'user-1',
+      nickname: 'Sam',
+      fullName: 'Sam Chan',
+      role: { tag: 'Manager' },
+    } as never,
+    state,
+  );
+
+  assert.match(prompt, /compute_vat_return/);
+  assert.match(prompt, /evaluate_risk_portfolio/);
+  assert.match(prompt, /evaluate_alerts/);
+  assert.match(prompt, /generate_contract/);
+  assert.match(prompt, /parse_eh_basket/);
+  assert.match(prompt, /import_tally/);
+  assert.match(prompt, /check_shipment_status/);
+  assert.match(prompt, /generate_sales_report/);
+});
+
 test('buildBusinessState floors outstanding at zero and formats collection rate without bigint underflow', async () => {
   const db = await import('../db');
   const { activityLogs, deliveryNotes, grns, moneyEvents, orders, parties, pipelines, purchaseOrders } = db;
