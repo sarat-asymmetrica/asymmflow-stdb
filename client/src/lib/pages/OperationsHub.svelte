@@ -11,13 +11,14 @@
     nicknameMap,
     orders,
     parties,
+    products,
     purchaseOrders
   } from '../db';
   import { formatBHD, formatDate } from '../format';
   import { toast } from '../stores';
   import { enter } from '$lib/motion/asymm-motion';
 
-  type TabId = 'orders' | 'delivery_notes' | 'grns' | 'pos';
+  type TabId = 'orders' | 'delivery_notes' | 'grns' | 'pos' | 'products';
 
   type PoDraftItem = {
     clientId: number;
@@ -96,7 +97,8 @@
     { id: 'orders', label: 'Orders' },
     { id: 'delivery_notes', label: 'Delivery Notes' },
     { id: 'grns', label: 'GRNs' },
-    { id: 'pos', label: 'Purchase Orders' }
+    { id: 'pos', label: 'Purchase Orders' },
+    { id: 'products', label: 'Products' }
   ];
 
   const STATUS_LABELS: Record<string, string> = {
@@ -379,6 +381,44 @@
       })
       .sort((a, b) => Number(b.id - a.id))
   );
+
+  // ── Product catalogue ──────────────────────────────────────────────────
+
+  let allProducts = $derived.by(() => {
+    return $products.map(p => {
+      const supplier = $parties.find(s => s.id === (p.supplierPartyId ?? 0n));
+      return {
+        ...p,
+        supplierName: supplier?.name ?? '—',
+        unitCostBHD: (Number(p.unitCostFils) / 1000).toLocaleString('en-BH', { minimumFractionDigits: 3, maximumFractionDigits: 3 }),
+        unitPriceBHD: (Number(p.unitPriceFils) / 1000).toLocaleString('en-BH', { minimumFractionDigits: 3, maximumFractionDigits: 3 }),
+        markupPct: (Number(p.minMarkupBps) / 100).toFixed(1),
+      };
+    });
+  });
+
+  let productSearch = $state('');
+
+  let filteredProducts = $derived.by(() => {
+    const q = productSearch.trim().toLowerCase();
+    if (!q) return allProducts;
+    return allProducts.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.sku.toLowerCase().includes(q) ||
+      p.category.toLowerCase().includes(q) ||
+      p.supplierName.toLowerCase().includes(q)
+    );
+  });
+
+  const DEMO_PRODUCTS = [
+    { id: 1n, sku: 'CM442-3RT0/0', name: 'Liquiline CM442', category: 'E+H Flow', supplierName: 'Endress+Hauser', unitCostBHD: '922.500', unitPriceBHD: '1,107.000', markupPct: '20.0', hsCode: '9026.10', description: 'Multi-parameter transmitter', isActive: true },
+    { id: 2n, sku: 'PMP71-ABC1M', name: 'Cerabar PMP71', category: 'E+H Pressure', supplierName: 'Endress+Hauser', unitCostBHD: '540.000', unitPriceBHD: '648.000', markupPct: '20.0', hsCode: '9026.20', description: 'Pressure transmitter', isActive: true },
+    { id: 3n, sku: 'SRV-4900C', name: 'Servomex 4900C', category: 'Servomex', supplierName: 'Servomex', unitCostBHD: '3,200.000', unitPriceBHD: '4,160.000', markupPct: '30.0', hsCode: '9027.10', description: 'Continuous gas analyser', isActive: true },
+    { id: 4n, sku: 'GIC-CHM-500', name: 'Industrial Chemical 500L', category: 'Chemicals', supplierName: 'GIC India', unitCostBHD: '180.000', unitPriceBHD: '270.000', markupPct: '50.0', hsCode: '3824.99', description: 'Industrial cleaning chemical', isActive: true },
+    { id: 5n, sku: 'ISK-ME382', name: 'Iskra ME382', category: 'Iskraemeco', supplierName: 'Iskraemeco', unitCostBHD: '85.000', unitPriceBHD: '106.250', markupPct: '25.0', hsCode: '9028.30', description: 'Three-phase energy meter', isActive: true },
+  ] as const;
+
+  let displayProducts = $derived(allProducts.length > 0 ? allProducts : DEMO_PRODUCTS as any);
 
   let selectedDn = $derived($deliveryNotes.find((n) => n.id === selectedDnId) ?? null);
   let selectedGrn = $derived($grns.find((g) => g.id === selectedGrnId) ?? null);
@@ -1419,6 +1459,63 @@
           {/if}
         </div>
       </div>
+    {:else if activeTab === 'products'}
+      <section class="tab-content">
+        <div class="filter-bar">
+          <input
+            class="search-neu"
+            type="search"
+            placeholder="Search products by name, SKU, category..."
+            bind:value={productSearch}
+            aria-label="Search products"
+          />
+          <span class="filter-count">{(productSearch ? filteredProducts : displayProducts).length} products</span>
+        </div>
+
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Supplier</th>
+                <th class="num">Cost (BHD)</th>
+                <th class="num">Price (BHD)</th>
+                <th class="num">Markup %</th>
+                <th>HS Code</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each (productSearch ? filteredProducts : displayProducts) as p (p.id)}
+                <tr>
+                  <td class="mono">{p.sku}</td>
+                  <td>
+                    <div class="cell-stack">
+                      <span class="cell-primary">{p.name}</span>
+                      {#if p.description}
+                        <span class="cell-secondary">{p.description}</span>
+                      {/if}
+                    </div>
+                  </td>
+                  <td><span class="label">{p.category}</span></td>
+                  <td>{p.supplierName}</td>
+                  <td class="num mono">{p.unitCostBHD}</td>
+                  <td class="num mono">{p.unitPriceBHD}</td>
+                  <td class="num mono">{p.markupPct}%</td>
+                  <td class="mono">{p.hsCode}</td>
+                  <td>
+                    <span class="status-dot" class:status-active={p.isActive} class:status-inactive={!p.isActive}>
+                      {p.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      </section>
     {/if}
 
   </div>
@@ -2229,5 +2326,85 @@
     padding: var(--sp-13) var(--sp-21);
     border-top: 1px solid var(--ink-06);
     background: var(--paper-elevated);
+  }
+
+  /* ── Product catalogue ── */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-13);
+    margin-bottom: var(--sp-13);
+  }
+
+  .search-neu {
+    flex: 1;
+    padding: var(--sp-8) var(--sp-13);
+    border: none;
+    border-radius: var(--radius-pill);
+    box-shadow: var(--shadow-neu-inset);
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    color: var(--ink);
+    background: var(--paper-card);
+    outline: none;
+  }
+
+  .search-neu::placeholder {
+    color: var(--ink-30);
+  }
+
+  .filter-count {
+    font-family: var(--font-data);
+    font-size: var(--text-xs);
+    color: var(--ink-30);
+    white-space: nowrap;
+  }
+
+  .data-table-wrap {
+    overflow-x: auto;
+    background: var(--paper-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-neu-raised);
+  }
+
+  .num {
+    text-align: right;
+  }
+
+  .mono {
+    font-family: var(--font-data);
+    letter-spacing: -0.01em;
+  }
+
+  .status-dot {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+  }
+
+  .status-active {
+    background: var(--sage-soft);
+    color: var(--sage);
+  }
+
+  .status-inactive {
+    background: var(--ink-06);
+    color: var(--ink-30);
+  }
+
+  .cell-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .cell-primary {
+    font-weight: 500;
+  }
+
+  .cell-secondary {
+    font-size: var(--text-xs);
+    color: var(--ink-30);
   }
 </style>

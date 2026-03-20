@@ -14,6 +14,7 @@
   import { computeARAgingRows, computeARAgingTotals } from '../business/arAging';
   import { buildPaymentCandidates, parseBankStatementCsv, suggestMatches } from '../business/bankReconciliation';
   import { executeTallyImport, prepareTallyImportPreview, type TallyImportExecutionResult, type TallyImportMode, type TallyImportPreview } from '../business/tallyImport';
+  import { loadChequeRegister, computeChequeSummary, findByStatus, type ChequeRegister as ChequeRegisterType, type ChequeEntry } from '../business/chequeRegister';
   import { enter } from '$lib/motion/asymm-motion';
   import { executeSkill } from '../skills/executor';
 
@@ -39,12 +40,29 @@
   let tallyPreview = $state<TallyImportPreview | null>(null);
   let tallyLastResult = $state<TallyImportExecutionResult | null>(null);
 
+  let chequeRegister = $state<ChequeRegisterType>(loadChequeRegister());
+  let chequeSummary = $derived(computeChequeSummary(chequeRegister));
+  let chequeFilter = $state<string>('all');
+
+  let displayCheques = $derived.by(() => {
+    if (chequeFilter === 'all') return chequeRegister.entries;
+    return findByStatus(chequeRegister, chequeFilter as any);
+  });
+
+  const DEMO_CHEQUES: ChequeEntry[] = [];
+  let showCheques = $derived(chequeRegister.entries.length > 0 ? displayCheques : [
+    { id: 'CHQ-20260315-0001', chequeNumber: '001234', bankName: 'NBB', payeeName: 'Endress+Hauser', amountFils: 12500000n, issueDate: '2026-03-15', status: 'issued' as const, reference: 'PO-2026-008', statusHistory: [], createdAt: '2026-03-15', updatedAt: '2026-03-15' },
+    { id: 'CHQ-20260310-0002', chequeNumber: '001235', bankName: 'NBB', payeeName: 'Servomex', amountFils: 4200000n, issueDate: '2026-03-10', clearingDate: '2026-03-18', status: 'cleared' as const, reference: 'PO-2026-005', statusHistory: [], createdAt: '2026-03-10', updatedAt: '2026-03-18' },
+    { id: 'CHQ-20260301-0003', chequeNumber: '001236', bankName: 'BBK', payeeName: 'GIC India', amountFils: 1800000n, issueDate: '2026-03-01', status: 'presented' as const, reference: 'PO-2026-003', statusHistory: [], createdAt: '2026-03-01', updatedAt: '2026-03-05' },
+  ]);
+
   const tabs = [
     { id: 'invoices', label: 'Invoices' },
     { id: 'payments', label: 'Payments' },
     { id: 'bank', label: 'Bank Recon' },
     { id: 'tally', label: 'Tally Import' },
     { id: 'aging', label: 'AR Aging' },
+    { id: 'cheques', label: 'Cheques' },
   ];
 
   // ── Demo data (shown when live data is empty) ──────────────
@@ -1390,6 +1408,84 @@
           </div>
         </div>
       {/if}
+
+    {:else if activeTab === 'cheques'}
+      <section class="cheque-shell">
+        <div class="cheque-toolbar card">
+          <div>
+            <h3 class="bank-panel-title">Cheque Register</h3>
+            <p class="bank-panel-subtitle">
+              Track cheque issuance, presentation, clearance, and stale cheques.
+            </p>
+          </div>
+          <div class="filter-bar">
+            <select class="select-neu" bind:value={chequeFilter}>
+              <option value="all">All Cheques</option>
+              <option value="issued">Issued</option>
+              <option value="presented">Presented</option>
+              <option value="cleared">Cleared</option>
+              <option value="bounced">Bounced</option>
+              <option value="stale">Stale</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Summary chips -->
+        <div class="cheque-summary">
+          <div class="cheque-chip card-inset">
+            <span class="cheque-chip-label">Pending</span>
+            <span class="cheque-chip-value">{chequeSummary.totalPending}</span>
+          </div>
+          <div class="cheque-chip card-inset">
+            <span class="cheque-chip-label">Outstanding</span>
+            <span class="cheque-chip-value">{(Number(chequeSummary.outstandingAmountFils) / 1000).toLocaleString('en-BH', { minimumFractionDigits: 3 })} BHD</span>
+          </div>
+          <div class="cheque-chip card-inset">
+            <span class="cheque-chip-label">Cleared</span>
+            <span class="cheque-chip-value">{chequeSummary.totalCleared}</span>
+          </div>
+          <div class="cheque-chip card-inset">
+            <span class="cheque-chip-label">Bounced</span>
+            <span class="cheque-chip-value cheque-bounced">{chequeSummary.totalBounced}</span>
+          </div>
+        </div>
+
+        <!-- Cheque table -->
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Cheque #</th>
+                <th>Bank</th>
+                <th>Payee</th>
+                <th class="num">Amount (BHD)</th>
+                <th>Issue Date</th>
+                <th>Status</th>
+                <th>Reference</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each showCheques as ch (ch.id)}
+                <tr>
+                  <td class="mono">{ch.chequeNumber}</td>
+                  <td>{ch.bankName}</td>
+                  <td>{ch.payeeName}</td>
+                  <td class="num mono">{(Number(ch.amountFils) / 1000).toLocaleString('en-BH', { minimumFractionDigits: 3 })}</td>
+                  <td class="mono">{ch.issueDate}</td>
+                  <td>
+                    <span class="cheque-status cheque-status-{ch.status}">{ch.status}</span>
+                  </td>
+                  <td class="mono">{ch.reference}</td>
+                </tr>
+              {/each}
+              {#if showCheques.length === 0}
+                <tr><td colspan="7" class="empty-row">No cheques match the current filter.</td></tr>
+              {/if}
+            </tbody>
+          </table>
+        </div>
+      </section>
     {/if}
 
   </div>
@@ -2188,4 +2284,69 @@
       grid-template-columns: 1fr;
     }
   }
+
+  /* ── Cheque Register ── */
+
+  .cheque-shell {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-16);
+  }
+
+  .cheque-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--sp-16);
+    padding: var(--sp-16);
+  }
+
+  .cheque-summary {
+    display: flex;
+    gap: var(--sp-10);
+    flex-wrap: wrap;
+  }
+
+  .cheque-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: var(--sp-10) var(--sp-16);
+    border-radius: var(--radius-md);
+    min-width: 100px;
+  }
+
+  .cheque-chip-label {
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-30);
+  }
+
+  .cheque-chip-value {
+    font-family: var(--font-data);
+    font-size: var(--text-lg);
+    color: var(--ink);
+  }
+
+  .cheque-bounced {
+    color: var(--coral);
+  }
+
+  .cheque-status {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    text-transform: capitalize;
+  }
+
+  .cheque-status-issued { background: var(--gold-glow); color: var(--gold); }
+  .cheque-status-presented { background: var(--blue-soft); color: var(--blue); }
+  .cheque-status-cleared { background: var(--sage-soft); color: var(--sage); }
+  .cheque-status-bounced { background: var(--coral-soft); color: var(--coral); }
+  .cheque-status-stale { background: var(--ink-06); color: var(--ink-30); }
+  .cheque-status-cancelled { background: var(--ink-06); color: var(--ink-30); }
 </style>
