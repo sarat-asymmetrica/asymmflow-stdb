@@ -40,6 +40,8 @@ import type { ParsedEHBasket } from '../business/ehBasketParser';
 import { calculateSellingPrice } from '../business/invariants';
 import { prepareTallyImportPreview, executeTallyImport } from '../business/tallyImport';
 import type { TallyImportMode } from '../business/tallyImport';
+import { parseBankStatementCsv } from '../business/bankReconciliation';
+import { Timestamp } from 'spacetimedb';
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -859,6 +861,91 @@ async function handleImportTally(
   };
 }
 
+// ── Bank statement import handler ────────────────────────────────────────────
+
+async function handleImportBankStatement(
+  params: Record<string, unknown>
+): Promise<SkillResult> {
+  const conn = getConnection();
+  if (!conn) {
+    return { success: false, summary: 'Not connected to database.', error: 'no_connection' };
+  }
+
+  const bankName = params.bankName != null ? String(params.bankName).trim() : '';
+  if (!bankName) {
+    return { success: false, summary: 'bankName parameter is required.', error: 'missing_param' };
+  }
+
+  const fileContent = params.fileContent ?? params.csvContent;
+  if (fileContent == null) {
+    return {
+      success: false,
+      summary:
+        `Bank statement import for "${bankName}" is ready. ` +
+        `Please use the Bank Recon tab in FinanceHub to upload the CSV file, ` +
+        `or provide the file content via the fileContent parameter.`,
+      error: 'file_required',
+      data: { bankName, navigateTo: 'finance_hub_bank_recon' },
+    };
+  }
+
+  let csvText: string;
+  if (typeof fileContent === 'string') {
+    // Try base64 decode first, fall back to treating as raw CSV
+    try {
+      csvText = atob(fileContent);
+    } catch {
+      csvText = fileContent;
+    }
+  } else {
+    return { success: false, summary: 'fileContent must be a string (base64 or raw CSV).', error: 'invalid_param' };
+  }
+
+  let parsed;
+  try {
+    parsed = parseBankStatementCsv(csvText, bankName);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, summary: `Failed to parse bank statement: ${message}`, error: message };
+  }
+
+  let importedCount = 0;
+  const warnings: string[] = [];
+
+  for (const txn of parsed) {
+    try {
+      conn.reducers.importBankTransaction({
+        bankName,
+        transactionDate: Timestamp.fromDate(txn.transactionDate),
+        description: txn.description,
+        amountFils: txn.amountFils,
+        reference: txn.reference,
+      });
+      importedCount += 1;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      warnings.push(`Row "${txn.description}": ${message}`);
+    }
+  }
+
+  const summary =
+    `Imported ${importedCount} of ${parsed.length} transactions from ${bankName} bank statement.` +
+    (warnings.length > 0 ? ` ${warnings.length} warning${warnings.length !== 1 ? 's' : ''}.` : '') +
+    ` Navigate to Bank Recon tab to match transactions.`;
+
+  return {
+    success: warnings.length === 0,
+    summary,
+    data: {
+      bankName,
+      totalParsed: parsed.length,
+      imported: importedCount,
+      warnings,
+    },
+    error: warnings.length > 0 ? warnings.join('; ') : undefined,
+  };
+}
+
 // ── Public entry point ────────────────────────────────────────────────────────
 
 /**
@@ -997,6 +1084,9 @@ export async function executeSkill(
 
       case 'import_tally':
         return await handleImportTally(params);
+
+      case 'import_bank_statement':
+        return await handleImportBankStatement(params);
 
       default:
         return {

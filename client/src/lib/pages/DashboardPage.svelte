@@ -10,8 +10,10 @@
     pipelines,
     orders,
     nicknameMap,
+    bankTransactions as stdbBankTransactions,
   } from '../db';
   import { computeDashboardMetrics } from '../business/dashboardMetrics';
+  import { computeCashForecast } from '../business/cashPosition';
   import { computePartyReceivableSnapshots } from '../business/arAging';
   import { formatBHD, formatRelative } from '../format';
   import { activeView, type View } from '../stores';
@@ -76,6 +78,15 @@
   let cashPosition = $derived(dashboardMetrics.cashPosition);
   let runwayDays = $derived(dashboardMetrics.cashRunwayDays);
   let followUps = $derived(dashboardMetrics.followUps);
+
+  let cashForecast = $derived(
+    computeCashForecast(
+      $moneyEvents as never,
+      $parties as never,
+      ($stdbBankTransactions ?? []) as never,
+      nowMicros,
+    )
+  );
 
   // ── Overdue decision cards ─────────────────────────────────────────────────
   // Top overdue customers with aging data for the timeline bar
@@ -312,6 +323,25 @@
   );
   let miniCashPosition = $derived(hasData ? formatBHD(cashPosition) : '8,250');
   let miniRunway = $derived(hasData ? (runwayDays === null ? 'n/a' : `${runwayDays}d`) : '55d');
+
+  let forecastBuckets = $derived(
+    cashForecast.buckets.map(b => ({
+      label: `${b.horizonDays}d`,
+      projected: formatBHD(b.projectedCashFils),
+      inflows: formatBHD(b.expectedInflowsFils),
+      outflows: formatBHD(b.expectedOutflowsFils),
+      isNegative: b.projectedCashFils < 0n,
+    }))
+  );
+
+  let receivables = $derived(formatBHD(cashForecast.currentPosition.totalReceivablesFils));
+  let payables = $derived(formatBHD(cashForecast.currentPosition.totalPayablesFils));
+  let workingCapital = $derived(formatBHD(cashForecast.currentPosition.netWorkingCapitalFils));
+  let burnRate = $derived(formatBHD(cashForecast.monthlyBurnFils));
+  let forecastRunway = $derived(
+    cashForecast.runwayDays === null ? 'n/a' : `${cashForecast.runwayDays} days`
+  );
+
   let miniFollowUps = $derived(
     hasData
       ? `${followUps.overdue} overdue | ${followUps.dueToday} today | ${followUps.dueSoon} soon`
@@ -493,6 +523,59 @@
     </section>
 
   </div>
+
+  <!-- Cash Forecast -->
+  <section class="cash-forecast-section" use:enter={{ index: 5 }}>
+    <h2 class="section-title">Cash Forecast</h2>
+    <div class="cash-forecast-grid">
+      <!-- Current position card -->
+      <div class="card cash-card">
+        <div class="cash-card-header">
+          <span class="cash-card-label">Current Position</span>
+          <span class="cash-card-value">{hasData ? miniCashPosition : '8,250'} BHD</span>
+        </div>
+        <div class="cash-card-metrics">
+          <div class="cash-metric">
+            <span class="cash-metric-label">Receivables</span>
+            <span class="cash-metric-value cash-positive">{hasData ? receivables : '31,420'}</span>
+          </div>
+          <div class="cash-metric">
+            <span class="cash-metric-label">Payables</span>
+            <span class="cash-metric-value cash-negative">{hasData ? payables : '12,800'}</span>
+          </div>
+          <div class="cash-metric">
+            <span class="cash-metric-label">Working Capital</span>
+            <span class="cash-metric-value">{hasData ? workingCapital : '18,620'}</span>
+          </div>
+        </div>
+        <div class="cash-card-footer">
+          <span class="cash-footer-label">Monthly burn</span>
+          <span class="cash-footer-value">{hasData ? burnRate : '4,500'} BHD</span>
+          <span class="cash-footer-sep">&middot;</span>
+          <span class="cash-footer-label">Runway</span>
+          <span class="cash-footer-value">{hasData ? forecastRunway : '55 days'}</span>
+        </div>
+      </div>
+
+      <!-- 30/60/90 forecast buckets -->
+      {#each hasData ? forecastBuckets : [
+        { label: '30d', projected: '12,400', inflows: '8,200', outflows: '4,050', isNegative: false },
+        { label: '60d', projected: '16,800', inflows: '14,500', outflows: '5,900', isNegative: false },
+        { label: '90d', projected: '21,300', inflows: '19,000', outflows: '5,950', isNegative: false },
+      ] as bucket}
+        <div class="card cash-bucket" class:cash-bucket-negative={bucket.isNegative}>
+          <span class="cash-bucket-horizon">{bucket.label}</span>
+          <span class="cash-bucket-projected" class:cash-negative={bucket.isNegative}>
+            {bucket.projected}
+          </span>
+          <div class="cash-bucket-detail">
+            <span class="cash-bucket-flow cash-positive">+{bucket.inflows}</span>
+            <span class="cash-bucket-flow cash-negative">-{bucket.outflows}</span>
+          </div>
+        </div>
+      {/each}
+    </div>
+  </section>
 
 </div>
 
@@ -919,5 +1002,142 @@
     color: var(--ink-30);
     padding: var(--sp-34) 0;
     text-align: center;
+  }
+
+  /* ── Cash Forecast ──────────────────────────────────────────────────── */
+
+  .cash-forecast-section {
+    grid-column: 1 / -1;
+  }
+
+  .cash-forecast-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: var(--sp-13);
+  }
+
+  .cash-card {
+    padding: var(--sp-16);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-13);
+  }
+
+  .cash-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .cash-card-label {
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-40);
+  }
+
+  .cash-card-value {
+    font-family: var(--font-data);
+    font-size: var(--text-xl);
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .cash-card-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sp-8);
+  }
+
+  .cash-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--sp-8);
+    background: var(--ink-03);
+    border-radius: var(--radius-sm);
+  }
+
+  .cash-metric-label {
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-30);
+  }
+
+  .cash-metric-value {
+    font-family: var(--font-data);
+    font-size: var(--text-sm);
+    color: var(--ink);
+  }
+
+  .cash-positive { color: var(--sage); }
+  .cash-negative { color: var(--coral); }
+
+  .cash-card-footer {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-8);
+    padding-top: var(--sp-8);
+    border-top: 1px solid var(--ink-06);
+  }
+
+  .cash-footer-label {
+    font-size: var(--text-xs);
+    color: var(--ink-30);
+  }
+
+  .cash-footer-value {
+    font-family: var(--font-data);
+    font-size: var(--text-sm);
+    color: var(--ink);
+  }
+
+  .cash-footer-sep {
+    color: var(--ink-12);
+  }
+
+  .cash-bucket {
+    padding: var(--sp-13);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-8);
+    text-align: center;
+  }
+
+  .cash-bucket-negative {
+    border-top: 2px solid var(--coral);
+  }
+
+  .cash-bucket-horizon {
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-40);
+  }
+
+  .cash-bucket-projected {
+    font-family: var(--font-data);
+    font-size: var(--text-lg);
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .cash-bucket-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-family: var(--font-data);
+    font-size: var(--text-xs);
+  }
+
+  .cash-bucket-flow {
+    white-space: nowrap;
   }
 </style>

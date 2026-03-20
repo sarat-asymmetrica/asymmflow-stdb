@@ -410,6 +410,7 @@
     if (mode === 'customer_invoices') return 'Customer Invoices';
     if (mode === 'supplier_invoices') return 'Supplier Invoices';
     if (mode === 'customer_payments') return 'Customer Payments';
+    if (mode === 'ar_defaulters') return 'AR Defaulters';
     return 'Supplier Payments';
   }
 
@@ -1115,7 +1116,7 @@
           <div>
             <h3 class="bank-panel-title">Tally Workbook Import</h3>
             <p class="bank-panel-subtitle">
-              Preview first, then import customer invoices, customer payments, supplier invoices, or supplier payments from Tally Excel exports.
+              Preview first, then import customer invoices, customer payments, supplier invoices, supplier payments, or AR defaulter reports from Tally Excel exports.
             </p>
           </div>
 
@@ -1132,6 +1133,7 @@
               <option value="supplier_invoices">Supplier Invoices</option>
               <option value="supplier_payments">Supplier Payments</option>
               <option value="customer_payments">Customer Payments</option>
+              <option value="ar_defaulters">AR Defaulters (Audit)</option>
             </select>
             <button class="btn btn-sm" onclick={triggerTallyImportPicker} disabled={tallyParsing}>
               {tallyParsing ? 'Reading...' : 'Choose Workbook'}

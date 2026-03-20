@@ -457,6 +457,30 @@ const SKILLS: SkillDefinition[] = [
     ],
   },
 
+  {
+    name: 'import_bank_statement',
+    displayName: 'Import Bank Statement',
+    description:
+      'Import bank transactions from a CSV statement file. Parses the statement, creates bank transaction records, and initiates the reconciliation workflow.',
+    category: 'file',
+    approval: 'explicit',
+    requiredRoles: ['Admin', 'Manager', 'Accountant'],
+    parameters: [
+      {
+        name: 'bankName',
+        type: 'string',
+        required: true,
+        description: 'Bank name, e.g. "NBB", "BBK", "Ahli United".',
+      },
+      {
+        name: 'fileContent',
+        type: 'string',
+        required: false,
+        description: 'Base64-encoded CSV content. If not provided, user will be directed to the Bank Recon tab.',
+      },
+    ],
+  },
+
   // ── INTELLIGENCE SKILLS ───────────────────────────────────────────────────────
 
   {
