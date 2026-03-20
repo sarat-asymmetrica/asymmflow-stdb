@@ -97,32 +97,32 @@
     <p class="section-desc">Value animation on mount, gold accent, hover shadow</p>
     <div class="kpi-grid">
       <KPICard
-        title="Revenue"
-        value="BHD {(counterValue / 1000).toFixed(3)}"
+        label="Revenue"
+        number={(counterValue / 1000).toFixed(3)}
+        unit="BHD"
         subtitle="This month"
-        trend="up"
-        trendValue="+12%"
+        subtitleColor="sage"
       />
       <KPICard
-        title="Outstanding"
-        value="BHD 8,240.500"
+        label="Outstanding"
+        number="8,240.500"
+        unit="BHD"
         subtitle="15 invoices"
-        trend="down"
-        trendValue="-5%"
+        subtitleColor="coral"
+        variant="danger"
       />
       <KPICard
-        title="Collection Rate"
-        value="87.5%"
+        label="Collection Rate"
+        number="87.5%"
         subtitle="30-day"
-        trend="up"
-        trendValue="+3.2%"
+        subtitleColor="sage"
       />
       <KPICard
-        title="Pipeline"
-        value="BHD 156,000"
+        label="Pipeline"
+        number="156,000"
+        unit="BHD"
         subtitle="8 opportunities"
-        trend="flat"
-        trendValue="—"
+        subtitleColor="gold"
       />
     </div>
   </section>

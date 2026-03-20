@@ -15,17 +15,21 @@
   };
 </script>
 
-<div
-  class="card {paddingMap[padding] ?? 'pad-md'}"
-  class:elevated
-  class:clickable={isClickable}
-  role={isClickable ? 'button' : undefined}
-  tabindex={isClickable ? 0 : undefined}
-  {onclick}
-  onkeydown={isClickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onclick(e); } } : undefined}
->
-  {@render children?.()}
-</div>
+{#if isClickable}
+  <button
+    class="card {paddingMap[padding] ?? 'pad-md'}"
+    class:elevated
+    class:clickable={isClickable}
+    type="button"
+    {onclick}
+  >
+    {@render children?.()}
+  </button>
+{:else}
+  <div class="card {paddingMap[padding] ?? 'pad-md'}" class:elevated>
+    {@render children?.()}
+  </div>
+{/if}
 
 <style>
   .card {
@@ -63,6 +67,12 @@
   .card.clickable:active {
     transform: translateY(0);
     box-shadow: var(--shadow-sm);
+  }
+
+  button.card {
+    width: 100%;
+    text-align: left;
+    border: 1px solid var(--ink-06);
   }
 
   /* Padding variants */

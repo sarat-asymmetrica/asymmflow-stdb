@@ -11,6 +11,7 @@
   } = $props();
 
   let selectId = $derived(id || `select-${Math.random().toString(36).slice(2, 7)}`);
+  let listboxId = $derived(`${selectId}-listbox`);
   let focused = $state(false);
   let isOpen = $state(false);
 
@@ -22,6 +23,16 @@
     value = optValue;
     isOpen = false;
     onchange?.(optValue);
+  }
+
+  function handleOptionKeydown(e: KeyboardEvent, optValue: string) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      selectOption(optValue);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      isOpen = false;
+    }
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -69,6 +80,7 @@
     tabindex={disabled ? -1 : 0}
     aria-expanded={isOpen}
     aria-haspopup="listbox"
+    aria-controls={listboxId}
     aria-disabled={disabled}
     aria-invalid={!!error}
     onclick={() => { if (!disabled) isOpen = !isOpen; }}
@@ -82,13 +94,15 @@
   </div>
 
   {#if isOpen && !disabled}
-    <ul class="select-dropdown" role="listbox" aria-label={label || 'Options'}>
+    <ul class="select-dropdown" id={listboxId} role="listbox" aria-label={label || 'Options'}>
       {#if placeholder}
         <li
           class="select-option is-placeholder"
           role="option"
           aria-selected={!value}
+          tabindex="0"
           onclick={() => selectOption('')}
+          onkeydown={(e) => handleOptionKeydown(e, '')}
         >
           {placeholder}
         </li>
@@ -99,7 +113,9 @@
           class:is-selected={option.value === value}
           role="option"
           aria-selected={option.value === value}
+          tabindex="0"
           onclick={() => selectOption(option.value)}
+          onkeydown={(e) => handleOptionKeydown(e, option.value)}
         >
           {option.label}
           {#if option.value === value}

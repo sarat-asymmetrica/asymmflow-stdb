@@ -786,10 +786,6 @@
     border-radius: var(--radius-sm);
   }
 
-  .metric-alert {
-    /* inset stays, just text changes */
-  }
-
   .metric-label {
     font-size: 10px;
     font-weight: 500;
