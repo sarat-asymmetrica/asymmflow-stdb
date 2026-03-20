@@ -35,6 +35,11 @@ import { buildPaymentPredictionSnapshot } from './paymentPredictionLogic';
 import { executeDocumentSkill } from './documentExecutor';
 import { executeStatusSkill } from './statusExecutor';
 import { downloadARAgingWorkbook } from '../documents/excelExport';
+import { parseEHBasketXML, getProductTypeStats } from '../business/ehBasketParser';
+import type { ParsedEHBasket } from '../business/ehBasketParser';
+import { calculateSellingPrice } from '../business/invariants';
+import { prepareTallyImportPreview, executeTallyImport } from '../business/tallyImport';
+import type { TallyImportMode } from '../business/tallyImport';
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -565,6 +570,295 @@ async function handleRecordPayment(
   }
 }
 
+// ── E+H basket handlers ─────────────────────────────────────────────────────
+
+async function handleParseEHBasket(
+  params: Record<string, unknown>
+): Promise<SkillResult> {
+  const xmlContent = params.xmlContent != null ? String(params.xmlContent) : '';
+  if (!xmlContent.trim()) {
+    return { success: false, summary: 'xmlContent parameter is required.', error: 'missing_param' };
+  }
+
+  let basket: ParsedEHBasket;
+  try {
+    basket = parseEHBasketXML(xmlContent);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, summary: `Failed to parse E+H basket XML: ${message}`, error: message };
+  }
+
+  const stats = getProductTypeStats(basket);
+  const statsLines = stats
+    .map(
+      (s) =>
+        `${s.productType}: ${s.itemCount} item${s.itemCount !== 1 ? 's' : ''}, ` +
+        `cost BHD ${formatBHD(s.totalCostBHDFils)}, sell BHD ${formatBHD(s.totalSellBHDFils)}, ` +
+        `margin ${s.averageMarginPct.toFixed(1)}%`
+    )
+    .join('; ');
+
+  const summary =
+    `Parsed E+H basket for ${basket.customerName || 'unknown customer'}: ` +
+    `${basket.items.length} item${basket.items.length !== 1 ? 's' : ''}, ` +
+    `total cost BHD ${formatBHD(basket.totalCostBHDFils)}, ` +
+    `sell BHD ${formatBHD(basket.totalSellBHDFils)}, ` +
+    `margin ${basket.overallMarginPct.toFixed(1)}%.` +
+    (basket.warnings.length > 0 ? ` Warnings: ${basket.warnings.join('; ')}.` : '') +
+    (statsLines ? ` Breakdown: ${statsLines}.` : '');
+
+  return {
+    success: true,
+    summary,
+    data: {
+      customerNumber: basket.customerNumber,
+      customerName: basket.customerName,
+      positionsCount: basket.positionsCount,
+      grossValueEUR: basket.grossValueEUR,
+      totalCostBHDFils: String(basket.totalCostBHDFils),
+      totalSellBHDFils: String(basket.totalSellBHDFils),
+      totalProfitBHDFils: String(basket.totalProfitBHDFils),
+      overallMarginPct: basket.overallMarginPct,
+      items: basket.items.map((item) => ({
+        orderCode: item.orderCode,
+        shortDescription: item.shortDescription,
+        quantity: item.quantity,
+        productType: item.productType,
+        unitCostBHDFils: String(item.unitCostBHDFils),
+        unitSellBHDFils: String(item.unitSellBHDFils),
+        itemSellBHDFils: String(item.itemSellBHDFils),
+        itemProfitBHDFils: String(item.itemProfitBHDFils),
+        productionTime: item.productionTime,
+      })),
+      stats: stats.map((s) => ({
+        productType: s.productType,
+        itemCount: s.itemCount,
+        totalCostBHDFils: String(s.totalCostBHDFils),
+        totalSellBHDFils: String(s.totalSellBHDFils),
+        averageMarginPct: s.averageMarginPct,
+      })),
+      warnings: basket.warnings,
+    },
+  };
+}
+
+async function handleImportEHCosting(
+  params: Record<string, unknown>
+): Promise<SkillResult> {
+  const conn = getConnection();
+  if (!conn) {
+    return { success: false, summary: 'Not connected to database.', error: 'no_connection' };
+  }
+
+  const pipelineId = params.pipelineId;
+  if (pipelineId == null) {
+    return { success: false, summary: 'pipelineId is required.', error: 'missing_param' };
+  }
+
+  const xmlContent = params.xmlContent != null ? String(params.xmlContent) : '';
+  if (!xmlContent.trim()) {
+    return { success: false, summary: 'xmlContent parameter is required.', error: 'missing_param' };
+  }
+
+  const numericPipelineId = Number(pipelineId);
+  if (!Number.isInteger(numericPipelineId) || numericPipelineId <= 0) {
+    return { success: false, summary: 'pipelineId must be a positive integer.', error: 'invalid_param' };
+  }
+
+  const pipeline = get(pipelines).find((pl) => pl.id === BigInt(numericPipelineId));
+  if (!pipeline) {
+    return { success: false, summary: `Pipeline #${pipelineId} not found.`, error: 'not_found' };
+  }
+
+  const party = get(parties).find((p) => p.id === pipeline.partyId);
+  const customerDiscountPct = params.customerDiscountPct != null ? Number(params.customerDiscountPct) : 0;
+
+  let basket: ParsedEHBasket;
+  try {
+    basket = parseEHBasketXML(xmlContent);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, summary: `Failed to parse E+H basket XML: ${message}`, error: message };
+  }
+
+  let addedCount = 0;
+  const warnings: string[] = [...basket.warnings];
+
+  for (const item of basket.items) {
+    const costResult = calculateSellingPrice(
+      item.unitCostBHDFils,
+      item.productType,
+      customerDiscountPct,
+    );
+    warnings.push(...costResult.warnings);
+
+    try {
+      conn.reducers.addLineItem({
+        parentType: 'pipeline',
+        parentId: BigInt(numericPipelineId),
+        description: `${item.shortDescription} (${item.orderCode})`,
+        quantity: BigInt(item.quantity),
+        unitPriceFils: costResult.sellingPriceFils,
+        fobCostFils: item.unitCostBHDFils,
+        freightCostFils: undefined,
+        customsCostFils: undefined,
+        insuranceCostFils: undefined,
+        handlingCostFils: undefined,
+        financeCostFils: undefined,
+        marginBps: Math.round(costResult.marginPct * 100),
+        costPerUnitFils: item.unitCostBHDFils,
+      });
+      addedCount += 1;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      warnings.push(`Failed to add "${item.orderCode}": ${message}`);
+    }
+  }
+
+  const summary =
+    `Imported ${addedCount} of ${basket.items.length} E+H basket items into pipeline "${pipeline.title}"` +
+    (party ? ` for ${party.name}` : '') +
+    (customerDiscountPct > 0 ? ` with ${customerDiscountPct}% customer discount` : '') +
+    `. Total sell BHD ${formatBHD(basket.totalSellBHDFils)}, margin ${basket.overallMarginPct.toFixed(1)}%.` +
+    (warnings.length > 0 ? ` ${warnings.length} warning${warnings.length !== 1 ? 's' : ''}.` : '');
+
+  return {
+    success: true,
+    summary,
+    data: {
+      pipelineId: String(pipeline.id),
+      pipelineTitle: pipeline.title,
+      itemsAdded: addedCount,
+      totalItems: basket.items.length,
+      totalSellBHDFils: String(basket.totalSellBHDFils),
+      overallMarginPct: basket.overallMarginPct,
+      customerDiscountPct,
+      warnings,
+    },
+  };
+}
+
+// ── Tally import handler ────────────────────────────────────────────────────
+
+async function handleImportTally(
+  params: Record<string, unknown>
+): Promise<SkillResult> {
+  const conn = getConnection();
+  if (!conn) {
+    return { success: false, summary: 'Not connected to database.', error: 'no_connection' };
+  }
+
+  const mode = params.mode != null ? String(params.mode).trim() : '';
+  const validModes: TallyImportMode[] = [
+    'customer_invoices',
+    'supplier_invoices',
+    'supplier_payments',
+    'customer_payments',
+  ];
+  if (!validModes.includes(mode as TallyImportMode)) {
+    return {
+      success: false,
+      summary: `mode must be one of: ${validModes.join(', ')}.`,
+      error: 'invalid_param',
+    };
+  }
+
+  const fileContent = params.fileContent ?? params.workbookData;
+  if (fileContent == null) {
+    return {
+      success: false,
+      summary:
+        `Tally import for "${mode}" is ready. ` +
+        `Please use the Tally Import tab in FinanceHub to select the Excel file, ` +
+        `or provide the file content via the fileContent parameter.`,
+      error: 'file_required',
+      data: { mode, navigateTo: 'finance_hub_tally_import' },
+    };
+  }
+
+  let workbookData: ArrayBuffer;
+  if (fileContent instanceof ArrayBuffer) {
+    workbookData = fileContent;
+  } else if (typeof fileContent === 'string') {
+    try {
+      const binaryString = atob(fileContent);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      workbookData = bytes.buffer;
+    } catch {
+      return { success: false, summary: 'fileContent is not valid base64.', error: 'invalid_param' };
+    }
+  } else {
+    return { success: false, summary: 'fileContent must be a base64 string or ArrayBuffer.', error: 'invalid_param' };
+  }
+
+  const allParties = get(parties);
+  const allEvents = get(moneyEvents);
+  const fileName = params.fileName != null ? String(params.fileName) : 'tally_import.xlsx';
+
+  let preview;
+  try {
+    preview = prepareTallyImportPreview(
+      workbookData,
+      mode as TallyImportMode,
+      allParties,
+      allEvents,
+      fileName,
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, summary: `Failed to preview Tally file: ${message}`, error: message };
+  }
+
+  if (preview.readyRows === 0) {
+    return {
+      success: true,
+      summary:
+        `Tally preview for "${mode}": ${preview.totalRows} row${preview.totalRows !== 1 ? 's' : ''} found, ` +
+        `${preview.duplicateRows} duplicate${preview.duplicateRows !== 1 ? 's' : ''}, ` +
+        `${preview.invalidRows} invalid. No rows ready for import.`,
+      data: {
+        mode,
+        fileName,
+        totalRows: preview.totalRows,
+        readyRows: 0,
+        duplicateRows: preview.duplicateRows,
+        invalidRows: preview.invalidRows,
+      },
+    };
+  }
+
+  const result = await executeTallyImport(
+    preview,
+    conn as never,
+    () => get(parties),
+    () => get(moneyEvents),
+  );
+
+  const summary =
+    `Tally import (${mode}): ${result.imported} imported, ` +
+    `${result.duplicates} duplicate${result.duplicates !== 1 ? 's' : ''}, ` +
+    `${result.createdParties} new part${result.createdParties !== 1 ? 'ies' : 'y'} created` +
+    (result.errors > 0 ? `, ${result.errors} error${result.errors !== 1 ? 's' : ''}` : '') + '.';
+
+  return {
+    success: result.errors === 0,
+    summary,
+    data: {
+      mode,
+      fileName,
+      imported: result.imported,
+      duplicates: result.duplicates,
+      createdParties: result.createdParties,
+      errors: result.errors,
+      errorDetails: result.errorDetails,
+    },
+    error: result.errors > 0 ? result.errorDetails.join('; ') : undefined,
+  };
+}
+
 // ── Public entry point ────────────────────────────────────────────────────────
 
 /**
@@ -694,6 +988,15 @@ export async function executeSkill(
 
       case 'record_payment':
         return await handleRecordPayment(params);
+
+      case 'parse_eh_basket':
+        return await handleParseEHBasket(params);
+
+      case 'import_eh_costing':
+        return await handleImportEHCosting(params);
+
+      case 'import_tally':
+        return await handleImportTally(params);
 
       default:
         return {

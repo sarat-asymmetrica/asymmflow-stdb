@@ -409,6 +409,7 @@
   function tallyModeLabel(mode: TallyImportMode): string {
     if (mode === 'customer_invoices') return 'Customer Invoices';
     if (mode === 'supplier_invoices') return 'Supplier Invoices';
+    if (mode === 'customer_payments') return 'Customer Payments';
     return 'Supplier Payments';
   }
 
@@ -1114,7 +1115,7 @@
           <div>
             <h3 class="bank-panel-title">Tally Workbook Import</h3>
             <p class="bank-panel-subtitle">
-              Preview first, then import customer invoices, supplier invoices, or supplier payments from Tally Excel exports.
+              Preview first, then import customer invoices, customer payments, supplier invoices, or supplier payments from Tally Excel exports.
             </p>
           </div>
 
@@ -1130,6 +1131,7 @@
               <option value="customer_invoices">Customer Invoices</option>
               <option value="supplier_invoices">Supplier Invoices</option>
               <option value="supplier_payments">Supplier Payments</option>
+              <option value="customer_payments">Customer Payments</option>
             </select>
             <button class="btn btn-sm" onclick={triggerTallyImportPicker} disabled={tallyParsing}>
               {tallyParsing ? 'Reading...' : 'Choose Workbook'}

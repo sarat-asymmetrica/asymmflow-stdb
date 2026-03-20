@@ -7,7 +7,9 @@ import type { MoneyEvent, Party } from '../db';
 export type TallyImportMode =
   | 'customer_invoices'
   | 'supplier_invoices'
-  | 'supplier_payments';
+  | 'supplier_payments'
+  | 'customer_payments'
+  | 'ar_defaulters';
 
 export type TallyImportStatus = 'ready' | 'duplicate' | 'invalid';
 
@@ -101,6 +103,32 @@ const MODE_META: Record<
     partyHeaders: ['supplier', 'supplier name', 'party', 'party name', 'vendor', 'ledger name'],
     dateHeaders: ['date', 'payment date', 'paid date', 'voucher date'],
     amountHeaders: ['amount', 'paid amount', 'payment amount', 'value'],
+    currencyHeaders: ['currency', 'curr'],
+    vatHeaders: [],
+  },
+  customer_payments: {
+    moneyKind: 'CustomerPayment',
+    isCustomer: true,
+    isSupplier: false,
+    partyLabel: 'customer',
+    requiresInvoiceMath: false,
+    referenceHeaders: ['reference', 'ref', 'payment reference', 'receipt no', 'receipt number', 'cheque no', 'transaction ref', 'voucher no'],
+    partyHeaders: ['customer', 'customer name', 'party', 'party name', 'ledger name'],
+    dateHeaders: ['date', 'payment date', 'receipt date', 'received date', 'voucher date'],
+    amountHeaders: ['amount', 'received amount', 'payment amount', 'receipt amount', 'value'],
+    currencyHeaders: ['currency', 'curr'],
+    vatHeaders: [],
+  },
+  ar_defaulters: {
+    moneyKind: 'CustomerInvoice',
+    isCustomer: true,
+    isSupplier: false,
+    partyLabel: 'customer',
+    requiresInvoiceMath: false,
+    referenceHeaders: ['reference', 'ref', 'account no', 'account number', 'ledger code'],
+    partyHeaders: ['customer', 'customer name', 'party', 'party name', 'debtor', 'debtor name', 'ledger name'],
+    dateHeaders: ['date', 'as of date', 'report date', 'aging date'],
+    amountHeaders: ['amount', 'outstanding', 'balance', 'overdue', 'total due', 'net balance'],
     currencyHeaders: ['currency', 'curr'],
     vatHeaders: [],
   },
@@ -321,6 +349,24 @@ function computePreviewRow(
     pushIssue(issues, 'Could not derive a valid pre-VAT subtotal from the sheet amount.');
   }
 
+  // AR defaulters mode: audit/reference data — never mark as duplicate
+  if (mode === 'ar_defaulters') {
+    return {
+      rowNumber,
+      partyName,
+      reference: reference || `ROW-${rowNumber}`,
+      currency,
+      transactionDate: transactionDate!,
+      subtotalFils: grossFils!,
+      totalFils: grossFils!,
+      status: issues.length > 0 ? 'invalid' : 'ready',
+      issues,
+      matchedPartyId: matchedParty?.id,
+      matchedPartyName: matchedParty?.name,
+      willCreateParty: !matchedParty,
+    };
+  }
+
   if (matchedParty && mode === 'customer_invoices') {
     const grade = matchedParty.grade?.tag ?? 'B';
     if (grade === 'C' || grade === 'D') {
@@ -482,6 +528,28 @@ export async function executeTallyImport(
         row.reference,
         row.totalFils,
       );
+
+      if (config.moneyKind === 'CustomerInvoice' && preview.mode === 'ar_defaulters') {
+        // AR defaulters: log activity only, don't create money events
+        try {
+          connection.reducers.logActivity({
+            entityType: 'party',
+            entityId: matchedParty.id,
+            action: 'ar_defaulter_import',
+            detail: `Tally AR defaulter: ${row.reference} outstanding BHD ${(Number(row.totalFils) / 1000).toFixed(3)}`,
+            followUpDue: undefined,
+          });
+          importedKeys.add(duplicateKey);
+          result.imported += 1;
+        } catch (error) {
+          result.errors += 1;
+          appendError(
+            result.errorDetails,
+            `Row ${row.rowNumber} (${row.reference || row.partyName}): ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+        continue;
+      }
 
       if (importedKeys.has(duplicateKey) || hasDuplicateMoneyEvent(
         getLatestMoneyEvents(),

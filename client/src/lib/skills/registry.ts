@@ -310,6 +310,36 @@ const SKILLS: SkillDefinition[] = [
     ],
   },
 
+  {
+    name: 'import_eh_costing',
+    displayName: 'Import E+H Costing',
+    description:
+      'Import parsed E+H basket items into a pipeline costing sheet, applying product-specific markup rules and customer grade discounts.',
+    category: 'data',
+    approval: 'explicit',
+    requiredRoles: ['Admin', 'Manager', 'Sales'],
+    parameters: [
+      {
+        name: 'pipelineId',
+        type: 'string',
+        required: true,
+        description: 'Pipeline deal to attach the costing to.',
+      },
+      {
+        name: 'xmlContent',
+        type: 'string',
+        required: true,
+        description: 'Raw XML content of the E+H basket file.',
+      },
+      {
+        name: 'customerDiscountPct',
+        type: 'number',
+        required: false,
+        description: 'Optional customer-specific discount percentage to apply on top of standard markup.',
+      },
+    ],
+  },
+
   // ── FILE SKILLS ──────────────────────────────────────────────────────────────
 
   {
@@ -381,6 +411,48 @@ const SKILLS: SkillDefinition[] = [
         required: true,
         description:
           'What to export, e.g. "overdue invoices", "pipeline", "customer list".',
+      },
+    ],
+  },
+
+  {
+    name: 'parse_eh_basket',
+    displayName: 'Parse E+H Basket',
+    description:
+      'Parse an Endress+Hauser XML basket file to extract product configurations, pricing in EUR, and auto-calculate BHD landed costs with PH Trading markup rules.',
+    category: 'file',
+    approval: 'explicit',
+    requiredRoles: ['Admin', 'Manager', 'Sales'],
+    parameters: [
+      {
+        name: 'xmlContent',
+        type: 'string',
+        required: true,
+        description: 'Raw XML content of the E+H basket file.',
+      },
+    ],
+  },
+
+  {
+    name: 'import_tally',
+    displayName: 'Import from Tally',
+    description:
+      'Import financial data from a Tally Excel export. Supports customer invoices, supplier invoices, supplier payments, and customer payments with preview-first validation and duplicate detection.',
+    category: 'file',
+    approval: 'explicit',
+    requiredRoles: ['Admin', 'Manager', 'Accountant'],
+    parameters: [
+      {
+        name: 'mode',
+        type: 'string',
+        required: true,
+        description: 'Import mode: "customer_invoices", "supplier_invoices", "supplier_payments", or "customer_payments".',
+      },
+      {
+        name: 'filePath',
+        type: 'file_path',
+        required: true,
+        description: 'Path to the Tally Excel (.xlsx) export file.',
       },
     ],
   },

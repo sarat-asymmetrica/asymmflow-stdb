@@ -10,12 +10,16 @@
 
   const PAGE_SIZE = 50;
 
+  let viewMode         = $state<'customers' | 'suppliers'>('customers');
   let showCreateParty  = $state(false);
   let activeTab        = $state('all');
   let selected360Id    = $state<bigint | null>(null);
 
   let customerSearch   = $state('');
   let customerShowAll  = $state(false);
+
+  let supplierSearch   = $state('');
+  let supplierShowAll  = $state(false);
 
   const tabs = [
     { id: 'all',  label: 'All' },
@@ -209,6 +213,79 @@
     },
   ];
 
+  const DEMO_SUPPLIERS = [
+    {
+      id: 101n,
+      name: 'Endress+Hauser',
+      fullName: 'Endress+Hauser AG',
+      productTypes: 'E+H Flow, E+H Level, E+H Pressure, E+H Temperature',
+      totalSpend: '85,000.000',
+      totalSpendFils: 85000000n,
+      payable: '12,500.000',
+      payableFils: 12500000n,
+      contact: 'Hans Mueller',
+      phone: '+41 61 715 7575',
+      paymentTerms: 'Net 60',
+      notes: 'Primary OEM. Basel office. Quarterly pricing review.',
+    },
+    {
+      id: 102n,
+      name: 'Servomex',
+      fullName: 'Servomex Group Ltd',
+      productTypes: 'Gas Analysers',
+      totalSpend: '22,000.000',
+      totalSpendFils: 22000000n,
+      payable: '3,200.000',
+      payableFils: 3200000n,
+      contact: 'James Wright',
+      phone: '+44 1onal 732800',
+      paymentTerms: 'Net 45',
+      notes: 'UK supplier. 25% margin products. Annual contract renewal.',
+    },
+    {
+      id: 103n,
+      name: 'GIC India',
+      fullName: 'Gujarat Industrial Corporation',
+      productTypes: 'Chemicals, Industrial Supplies',
+      totalSpend: '8,500.000',
+      totalSpendFils: 8500000n,
+      payable: '0.000',
+      payableFils: 0n,
+      contact: 'Rajan Patel',
+      phone: '+91 79 2658 3124',
+      paymentTerms: 'Advance',
+      notes: 'High margin (35-50%). Advance payment only.',
+    },
+    {
+      id: 104n,
+      name: 'Iskraemeco',
+      fullName: 'Iskraemeco d.d.',
+      productTypes: 'Energy Meters',
+      totalSpend: '14,000.000',
+      totalSpendFils: 14000000n,
+      payable: '5,800.000',
+      payableFils: 5800000n,
+      contact: 'Ana Kovac',
+      phone: '+386 4 206 1000',
+      paymentTerms: 'Net 90',
+      notes: 'Slovenian meter manufacturer. Lead time 8-12 weeks.',
+    },
+    {
+      id: 105n,
+      name: 'Landis+Gyr',
+      fullName: 'Landis+Gyr AG',
+      productTypes: 'Smart Meters, Grid Solutions',
+      totalSpend: '11,000.000',
+      totalSpendFils: 11000000n,
+      payable: '2,200.000',
+      payableFils: 2200000n,
+      contact: 'Stefan Berger',
+      phone: '+41 41 935 6000',
+      paymentTerms: 'Net 60',
+      notes: 'Swiss HQ. Metering projects with EWA.',
+    },
+  ];
+
   // ── Live data ──────────────────────────────────────────
 
   let allCustomers = $derived.by(() => {
@@ -251,6 +328,58 @@
   let useLiveData = $derived(allCustomers.length > 0);
 
   let displayCustomers = $derived(useLiveData ? allCustomers : DEMO_CUSTOMERS);
+
+  // ── Supplier live data ──────────────────────────────────
+
+  let allSuppliers = $derived.by(() => {
+    return $parties.filter(p => p.isSupplier).map(p => {
+      const partyContacts = $contacts.filter(c => c.partyId === p.id);
+      const primaryContact = partyContacts[0];
+
+      // Compute spend from SupplierInvoice and SupplierPayment events
+      const partyEvents = $moneyEvents.filter(e => e.partyId === p.id);
+      const invoiced = partyEvents
+        .filter(e => (e.kind as any)?.tag === 'SupplierInvoice')
+        .reduce((s, e) => s + e.totalFils, 0n);
+      const paid = partyEvents
+        .filter(e => (e.kind as any)?.tag === 'SupplierPayment')
+        .reduce((s, e) => s + e.totalFils, 0n);
+      const payable = invoiced > paid ? invoiced - paid : 0n;
+
+      return {
+        id: p.id,
+        name: p.name,
+        fullName: p.name,
+        productTypes: p.productTypes ?? '',
+        totalSpend: (Number(invoiced) / 1000).toLocaleString('en-BH', { minimumFractionDigits: 3, maximumFractionDigits: 3 }),
+        totalSpendFils: invoiced,
+        payable: (Number(payable) / 1000).toLocaleString('en-BH', { minimumFractionDigits: 3, maximumFractionDigits: 3 }),
+        payableFils: payable,
+        contact: primaryContact?.name ?? '—',
+        phone: primaryContact?.phone ?? '',
+        paymentTerms: `Net ${Number(p.paymentTermsDays)}`,
+        notes: p.notes ?? '',
+      };
+    });
+  });
+
+  let displaySuppliers = $derived(allSuppliers.length > 0 ? allSuppliers : DEMO_SUPPLIERS);
+  let useLiveSupplierData = $derived(allSuppliers.length > 0);
+
+  let filteredSuppliers = $derived.by(() => {
+    const q = supplierSearch.trim().toLowerCase();
+    return (displaySuppliers as typeof DEMO_SUPPLIERS).filter(s => {
+      if (q && !s.name.toLowerCase().includes(q) && !s.productTypes.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  });
+
+  let visibleSuppliers = $derived.by(() => {
+    if (supplierShowAll) return filteredSuppliers;
+    return filteredSuppliers.slice(0, PAGE_SIZE);
+  });
+
+  let hasMoreSuppliers = $derived(filteredSuppliers.length > PAGE_SIZE && !supplierShowAll);
 
   // ── Last activity map (live) ──────────────────────────
 
@@ -322,156 +451,272 @@
   <!-- Header -->
   <header class="hub-header" use:enter={{ index: 0 }}>
     <div class="hub-title-group">
-      <h1 class="hub-title">CUSTOMERS</h1>
-      <p class="hub-count">{displayCustomers.length} total</p>
+      <h1 class="hub-title">{viewMode === 'customers' ? 'CUSTOMERS' : 'SUPPLIERS'}</h1>
+      <p class="hub-count">{viewMode === 'customers' ? displayCustomers.length : displaySuppliers.length} total</p>
     </div>
 
-    <!-- Grade distribution -->
-    <div class="grade-dist">
-      {#each Object.entries(gradeCounts) as [g, n]}
-        {#if n > 0}
-          <div class="grade-dist-item card-subtle">
-            <span class="grade-badge grade-{gradeColor[g] ?? 'neutral'}">{g}</span>
-            <span class="grade-dist-count">{n}</span>
-          </div>
-        {/if}
-      {/each}
+    <!-- View toggle -->
+    <div class="view-toggle">
+      <button class="toggle-btn" class:toggle-active={viewMode === 'customers'} onclick={() => (viewMode = 'customers')}>
+        Customers
+      </button>
+      <button class="toggle-btn" class:toggle-active={viewMode === 'suppliers'} onclick={() => (viewMode = 'suppliers')}>
+        Suppliers
+      </button>
     </div>
+
+    <!-- Grade distribution (customers only) -->
+    {#if viewMode === 'customers'}
+      <div class="grade-dist">
+        {#each Object.entries(gradeCounts) as [g, n]}
+          {#if n > 0}
+            <div class="grade-dist-item card-subtle">
+              <span class="grade-badge grade-{gradeColor[g] ?? 'neutral'}">{g}</span>
+              <span class="grade-dist-count">{n}</span>
+            </div>
+          {/if}
+        {/each}
+      </div>
+    {/if}
 
     <button class="btn btn-gold btn-sm" onclick={() => (showCreateParty = true)}>
-      + New Customer
+      + {viewMode === 'customers' ? 'New Customer' : 'New Supplier'}
     </button>
   </header>
 
-  <!-- Tabs -->
-  <div class="tabs-row" use:enter={{ index: 1 }}>
-    {#each tabs as tab}
-      <button
-        class="tab-btn"
-        class:tab-active={activeTab === tab.id}
-        onclick={() => (activeTab = tab.id)}
-      >
-        {tab.label}
-        {#if tab.id !== 'all'}
-          <span class="tab-count">{gradeCounts[tab.id] ?? 0}</span>
-        {/if}
-      </button>
-    {/each}
-  </div>
-
-  <!-- Search -->
-  <div class="search-row" use:enter={{ index: 2 }}>
-    <div class="search-wrap">
-      <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-      </svg>
-      <input
-        class="search-neu"
-        type="search"
-        placeholder="Search customers..."
-        bind:value={customerSearch}
-        aria-label="Search customers"
-      />
+  {#if viewMode === 'customers'}
+    <!-- Tabs -->
+    <div class="tabs-row" use:enter={{ index: 1 }}>
+      {#each tabs as tab}
+        <button
+          class="tab-btn"
+          class:tab-active={activeTab === tab.id}
+          onclick={() => (activeTab = tab.id)}
+        >
+          {tab.label}
+          {#if tab.id !== 'all'}
+            <span class="tab-count">{gradeCounts[tab.id] ?? 0}</span>
+          {/if}
+        </button>
+      {/each}
     </div>
-    {#if filteredCustomers.length !== displayCustomers.length}
-      <span class="filter-count">{filteredCustomers.length} of {displayCustomers.length}</span>
-    {/if}
-  </div>
 
-  <!-- Customer grid -->
-  <div class="grid-section" use:enter={{ index: 3 }}>
-    {#if filteredCustomers.length === 0}
-      <div class="empty-state">
-        <div class="empty-glyph">&#9675;</div>
-        <p class="empty-msg">No customers match your search.</p>
+    <!-- Search -->
+    <div class="search-row" use:enter={{ index: 2 }}>
+      <div class="search-wrap">
+        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input
+          class="search-neu"
+          type="search"
+          placeholder="Search customers..."
+          bind:value={customerSearch}
+          aria-label="Search customers"
+        />
       </div>
-    {:else}
-      <div class="customer-grid">
-        {#each visibleCustomers as c (c.id)}
-          {@const hasOutstanding = c.outstandingFils > 0n}
-          <div
-            class="customer-card card"
-            class:card-blocked={c.creditBlocked}
-            class:card-overdue={hasOutstanding && c.grade === 'C'}
-          >
-            <!-- Card header: grade + name + category -->
-            <div class="card-head">
-              <div class="card-head-left">
-                <span class="grade-badge grade-{gradeColor[c.grade] ?? 'neutral'}">{c.grade}</span>
-                <div class="card-name-group">
-                  <button
-                    class="card-name"
-                    onclick={() => useLiveData && (selected360Id = c.id)}
-                    title={useLiveData ? `Open ${c.name} 360 view` : c.fullName}
-                  >
-                    {c.name}
-                  </button>
-                  {#if c.fullName !== c.name}
-                    <span class="card-fullname">{c.fullName}</span>
+      {#if filteredCustomers.length !== displayCustomers.length}
+        <span class="filter-count">{filteredCustomers.length} of {displayCustomers.length}</span>
+      {/if}
+    </div>
+
+    <!-- Customer grid -->
+    <div class="grid-section" use:enter={{ index: 3 }}>
+      {#if filteredCustomers.length === 0}
+        <div class="empty-state">
+          <div class="empty-glyph">&#9675;</div>
+          <p class="empty-msg">No customers match your search.</p>
+        </div>
+      {:else}
+        <div class="customer-grid">
+          {#each visibleCustomers as c (c.id)}
+            {@const hasOutstanding = c.outstandingFils > 0n}
+            <div
+              class="customer-card card"
+              class:card-blocked={c.creditBlocked}
+              class:card-overdue={hasOutstanding && c.grade === 'C'}
+            >
+              <!-- Card header: grade + name + category -->
+              <div class="card-head">
+                <div class="card-head-left">
+                  <span class="grade-badge grade-{gradeColor[c.grade] ?? 'neutral'}">{c.grade}</span>
+                  <div class="card-name-group">
+                    <button
+                      class="card-name"
+                      onclick={() => useLiveData && (selected360Id = c.id)}
+                      title={useLiveData ? `Open ${c.name} 360 view` : c.fullName}
+                    >
+                      {c.name}
+                    </button>
+                    {#if c.fullName !== c.name}
+                      <span class="card-fullname">{c.fullName}</span>
+                    {/if}
+                  </div>
+                </div>
+                {#if c.creditBlocked}
+                  <span class="blocked-chip">Blocked</span>
+                {/if}
+              </div>
+
+              <!-- Category tag -->
+              {#if c.category}
+                <div class="card-category">
+                  <span class="label">{c.category}</span>
+                </div>
+              {/if}
+
+              <!-- Key metrics row -->
+              <div class="metrics-row">
+                <div class="metric card-inset">
+                  <span class="metric-label">Revenue</span>
+                  <span class="metric-value">{c.totalRevenue}</span>
+                </div>
+                <div class="metric card-inset" class:metric-alert={hasOutstanding}>
+                  <span class="metric-label">Outstanding</span>
+                  <span class="metric-value" class:metric-value-outstanding={hasOutstanding}>{c.outstanding}</span>
+                </div>
+                <div class="metric card-inset">
+                  <span class="metric-label">Last Order</span>
+                  <span class="metric-value metric-date">{c.lastOrder}</span>
+                </div>
+              </div>
+
+              <!-- Contact info -->
+              <div class="contact-strip">
+                <span class="contact-glyph" aria-hidden="true">&#9687;</span>
+                <div class="contact-info">
+                  <span class="contact-name">{c.contact}</span>
+                  {#if c.phone}
+                    <span class="contact-phone">{c.phone}</span>
                   {/if}
                 </div>
               </div>
-              {#if c.creditBlocked}
-                <span class="blocked-chip">Blocked</span>
-              {/if}
-            </div>
 
-            <!-- Category tag -->
-            {#if c.category}
-              <div class="card-category">
-                <span class="label">{c.category}</span>
-              </div>
-            {/if}
-
-            <!-- Key metrics row -->
-            <div class="metrics-row">
-              <div class="metric card-inset">
-                <span class="metric-label">Revenue</span>
-                <span class="metric-value">{c.totalRevenue}</span>
-              </div>
-              <div class="metric card-inset" class:metric-alert={hasOutstanding}>
-                <span class="metric-label">Outstanding</span>
-                <span class="metric-value" class:metric-value-outstanding={hasOutstanding}>{c.outstanding}</span>
-              </div>
-              <div class="metric card-inset">
-                <span class="metric-label">Last Order</span>
-                <span class="metric-value metric-date">{c.lastOrder}</span>
-              </div>
-            </div>
-
-            <!-- Contact info -->
-            <div class="contact-strip">
-              <span class="contact-glyph" aria-hidden="true">&#9687;</span>
-              <div class="contact-info">
-                <span class="contact-name">{c.contact}</span>
-                {#if c.phone}
-                  <span class="contact-phone">{c.phone}</span>
+              <!-- Terms + last activity footer -->
+              <div class="card-footer">
+                <span class="card-terms">{c.paymentTerms}</span>
+                {#if useLiveData && lastActivityMap.has(c.id)}
+                  <span class="card-activity">Last activity: {lastActivityMap.get(c.id)}</span>
+                {:else if c.notes}
+                  <span class="card-activity card-notes">{c.notes}</span>
                 {/if}
               </div>
             </div>
+          {/each}
+        </div>
 
-            <!-- Terms + last activity footer -->
-            <div class="card-footer">
-              <span class="card-terms">{c.paymentTerms}</span>
-              {#if useLiveData && lastActivityMap.has(c.id)}
-                <span class="card-activity">Last activity: {lastActivityMap.get(c.id)}</span>
-              {:else if c.notes}
-                <span class="card-activity card-notes">{c.notes}</span>
+        {#if hasMore}
+          <div class="show-more-row">
+            <button class="btn btn-ghost btn-sm" onclick={() => (customerShowAll = true)}>
+              Show all {filteredCustomers.length} customers
+            </button>
+          </div>
+        {/if}
+      {/if}
+    </div>
+
+  {:else}
+    <!-- Supplier search -->
+    <div class="search-row" use:enter={{ index: 1 }}>
+      <div class="search-wrap">
+        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input
+          class="search-neu"
+          type="search"
+          placeholder="Search suppliers or product types..."
+          bind:value={supplierSearch}
+          aria-label="Search suppliers"
+        />
+      </div>
+      {#if filteredSuppliers.length !== displaySuppliers.length}
+        <span class="filter-count">{filteredSuppliers.length} of {displaySuppliers.length}</span>
+      {/if}
+    </div>
+
+    <!-- Supplier grid -->
+    <div class="grid-section" use:enter={{ index: 2 }}>
+      {#if filteredSuppliers.length === 0}
+        <div class="empty-state">
+          <div class="empty-glyph">&#9675;</div>
+          <p class="empty-msg">No suppliers match your search.</p>
+        </div>
+      {:else}
+        <div class="customer-grid">
+          {#each visibleSuppliers as s (s.id)}
+            {@const hasPayable = s.payableFils > 0n}
+            <div class="customer-card card">
+              <!-- Card header: name -->
+              <div class="card-head">
+                <div class="card-head-left">
+                  <div class="card-name-group">
+                    <span class="card-name" title={s.fullName}>
+                      {s.name}
+                    </span>
+                    {#if s.fullName !== s.name}
+                      <span class="card-fullname">{s.fullName}</span>
+                    {/if}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Product type tags -->
+              {#if s.productTypes}
+                <div class="supplier-type-tags">
+                  {#each s.productTypes.split(', ') as tag}
+                    <span class="supplier-type-tag">{tag}</span>
+                  {/each}
+                </div>
+              {/if}
+
+              <!-- Key metrics row -->
+              <div class="metrics-row">
+                <div class="metric card-inset">
+                  <span class="metric-label">Total Spend</span>
+                  <span class="metric-value">{s.totalSpend}</span>
+                </div>
+                <div class="metric card-inset" class:metric-alert={hasPayable}>
+                  <span class="metric-label">Payable</span>
+                  <span class="metric-value" class:metric-value-outstanding={hasPayable}>{s.payable}</span>
+                </div>
+                <div class="metric card-inset">
+                  <span class="metric-label">Terms</span>
+                  <span class="metric-value">{s.paymentTerms}</span>
+                </div>
+              </div>
+
+              <!-- Contact info -->
+              <div class="contact-strip">
+                <span class="contact-glyph" aria-hidden="true">&#9687;</span>
+                <div class="contact-info">
+                  <span class="contact-name">{s.contact}</span>
+                  {#if s.phone}
+                    <span class="contact-phone">{s.phone}</span>
+                  {/if}
+                </div>
+              </div>
+
+              <!-- Footer with notes -->
+              {#if s.notes}
+                <div class="card-footer">
+                  <span class="card-activity card-notes" style="max-width: 100%">{s.notes}</span>
+                </div>
               {/if}
             </div>
-          </div>
-        {/each}
-      </div>
-
-      {#if hasMore}
-        <div class="show-more-row">
-          <button class="btn btn-ghost btn-sm" onclick={() => (customerShowAll = true)}>
-            Show all {filteredCustomers.length} customers
-          </button>
+          {/each}
         </div>
+
+        {#if hasMoreSuppliers}
+          <div class="show-more-row">
+            <button class="btn btn-ghost btn-sm" onclick={() => (supplierShowAll = true)}>
+              Show all {filteredSuppliers.length} suppliers
+            </button>
+          </div>
+        {/if}
       {/if}
-    {/if}
-  </div>
+    </div>
+  {/if}
 
 </div>
 
@@ -886,6 +1131,50 @@
     display: flex;
     justify-content: center;
     padding: var(--sp-16) 0 var(--sp-8);
+  }
+
+  /* ── View toggle ── */
+  .view-toggle {
+    display: flex;
+    background: var(--ink-06);
+    border-radius: var(--radius-pill);
+    padding: 2px;
+    gap: 0;
+  }
+
+  .toggle-btn {
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    padding: var(--sp-5) var(--sp-16);
+    border: none;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--ink-40);
+    cursor: pointer;
+    transition: all var(--dur-fast) var(--ease-out);
+  }
+
+  .toggle-active {
+    background: var(--paper-card);
+    color: var(--ink);
+    box-shadow: var(--shadow-neu-sm);
+  }
+
+  /* ── Supplier type tags ── */
+  .supplier-type-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-3);
+  }
+
+  .supplier-type-tag {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--ink-40);
+    background: var(--ink-06);
+    padding: 1px 6px;
+    border-radius: var(--radius-pill);
   }
 
   /* ── Empty state ── */
