@@ -152,6 +152,7 @@ test('invoiceGenerator shows costing columns when enabled and totals stay consis
 test('filsToWords handles dinars and fils cleanly', () => {
   assert.equal(filsToWords(1_000n), 'One Bahraini Dinar');
   assert.equal(filsToWords(500n), 'Five hundred fils');
+  assert.equal(filsToWords(3_400_500n), 'Three thousand four hundred Bahraini Dinars and Five hundred fils');
 });
 
 let failures = 0;

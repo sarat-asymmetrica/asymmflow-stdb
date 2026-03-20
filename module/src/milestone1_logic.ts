@@ -88,6 +88,16 @@ function computeOfferTotal(oemPriceFils: bigint, markupBps: bigint, additionalCo
   return oemPriceFils + additionalCostsFils + (oemPriceFils * markupBps) / 10000n;
 }
 
+function requireManagerApprovalForLargePurchaseOrder(ctx: GenericCtx, totalFils: bigint): void {
+  if (totalFils <= 5_000_000n) return;
+
+  const caller = ctx.db.member.identity.find(ctx.sender);
+  const roleTag = caller?.role?.tag;
+  if (roleTag !== 'Admin' && roleTag !== 'Manager') {
+    throw new Error('Purchase orders above 5,000.000 BHD require Manager or Admin approval');
+  }
+}
+
 export function issueDocNumber(ctx: GenericCtx, docType: string, year: number): string {
   if (year < 2020 || year > 2099) {
     throw new Error(`Year ${year} is out of the supported range 2020-2099`);
@@ -576,6 +586,7 @@ export function managePurchaseOrderImpl(ctx: GenericCtx, args: {
 }): void {
   const supplier = ctx.db.party.id.find(args.partyId);
   if (!supplier) throw new Error(`Supplier party #${args.partyId} not found`);
+  requireManagerApprovalForLargePurchaseOrder(ctx, args.totalFils);
 
   const deliveryTerms = args.deliveryTerms?.trim() || 'CIF Bahrain unless otherwise specified';
 

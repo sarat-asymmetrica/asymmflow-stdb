@@ -1862,6 +1862,23 @@ test('managePurchaseOrderImpl assigns a stored poNumber when creating a purchase
   assert.equal(ctx.db.activityLog.rows.at(-1)?.detail, 'Created purchase order PO-2025-001');
 });
 
+test('managePurchaseOrderImpl requires manager approval for purchase orders above 5,000 BHD', () => {
+  const ctx = createContext({ senderRole: 'Operations' });
+  insertParty(ctx, { isCustomer: false, isSupplier: true });
+
+  expectThrows(
+    () =>
+      managePurchaseOrderImpl(ctx as never, {
+        id: 0n,
+        partyId: 1n,
+        newStatus: status('Draft'),
+        totalFils: 5_000_001n,
+        deliveryTerms: 'CIF Bahrain',
+      }),
+    /require Manager or Admin approval/,
+  );
+});
+
 test('refreshPurchaseOrderStatusFromReceipts keeps terminal purchase orders terminal', () => {
   const ctx = createContext({ senderRole: 'Operations' });
   insertParty(ctx, { id: 2n, isCustomer: false, isSupplier: true });

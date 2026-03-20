@@ -1,6 +1,7 @@
 import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 import { PH_LETTERHEAD_BASE64 } from './letterhead';
+import { filsToBahrainiWords } from './moneyWords';
 import type { Party } from '../stdb_generated/types';
 import { formatBHD } from '../format';
 import { getConnection } from '../db';
@@ -57,43 +58,6 @@ const BANK_DETAILS = [
 ];
 
 const VAT_RATE = 10; // percent
-
-// ---- BHD Amount to Words converter ----------------------------------------
-
-function filsToWords(totalFils: bigint): string {
-  const ones = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE',
-    'TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN',
-    'SEVENTEEN', 'EIGHTEEN', 'NINETEEN'];
-  const tens = ['', '', 'TWENTY', 'THIRTY', 'FORTY', 'FIFTY', 'SIXTY', 'SEVENTY', 'EIGHTY', 'NINETY'];
-
-  function numberToWords(n: number): string {
-    if (n === 0) return '';
-    if (n < 20) return ones[n];
-    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
-    if (n < 1000) return ones[Math.floor(n / 100)] + ' HUNDRED' + (n % 100 ? ' AND ' + numberToWords(n % 100) : '');
-    if (n < 100000) return numberToWords(Math.floor(n / 1000)) + ' THOUSAND' + (n % 1000 ? ' ' + numberToWords(n % 1000) : '');
-    if (n < 10000000) return numberToWords(Math.floor(n / 100000)) + ' LAKH' + (n % 100000 ? ' ' + numberToWords(n % 100000) : '');
-    return numberToWords(Math.floor(n / 10000000)) + ' CRORE' + (n % 10000000 ? ' ' + numberToWords(n % 10000000) : '');
-  }
-
-  const abs = totalFils < 0n ? -totalFils : totalFils;
-  const dinars = Number(abs / 1000n);
-  const fils = Number(abs % 1000n);
-
-  let result = '(Total BHD ';
-  if (dinars === 0) {
-    result += 'ZERO';
-  } else {
-    result += numberToWords(dinars);
-  }
-
-  if (fils > 0) {
-    result += ` AND FILS ${fils}/1000`;
-  }
-
-  result += ' ONLY)';
-  return result;
-}
 
 // ---- Quotation number helper ----------------------------------------------
 
@@ -200,7 +164,11 @@ export function buildQuotationDocDefinition(data: QuotationData): { docDef: obje
   const grandTotal = subtotal + vatAmount;
 
   // Amount in words
-  const amountInWords = filsToWords(grandTotal);
+  const amountInWords = filsToBahrainiWords(grandTotal, {
+    wordCase: 'upper',
+    includeOnlySuffix: true,
+    wrapInParens: true,
+  });
 
   // VAT + Total rows added to table
   const vatRow = [

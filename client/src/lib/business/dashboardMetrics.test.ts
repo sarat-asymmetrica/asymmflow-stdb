@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 
-import { computeDashboardMetrics, isSameUtcMonth } from './dashboardMetrics';
+import {
+  computeCashRunwayDays,
+  computeDashboardMetrics,
+  computeUpcomingFollowUps,
+  isSameUtcMonth,
+} from './dashboardMetrics';
 
 const failures: string[] = [];
 
@@ -88,6 +93,11 @@ test('computeDashboardMetrics matches manual KPI totals', () => {
         createdAt: ts('2026-03-04T00:00:00Z'),
       },
     ],
+    activityLogs: [
+      { followUpDue: ts('2026-03-10T08:00:00Z'), followUpDone: false },
+      { followUpDue: ts('2026-03-12T08:00:00Z'), followUpDone: false },
+      { followUpDue: ts('2026-03-08T08:00:00Z'), followUpDone: false },
+    ],
     nowMicros: ts('2026-03-10T00:00:00Z').microsSinceUnixEpoch,
   });
 
@@ -100,6 +110,8 @@ test('computeDashboardMetrics matches manual KPI totals', () => {
   assert.equal(metrics.customerCount, 2);
   assert.equal(metrics.supplierCount, 1);
   assert.equal(metrics.collectionRatePct, 6);
+  assert.equal(metrics.cashRunwayDays, 1);
+  assert.deepEqual(metrics.followUps, { dueToday: 1, dueSoon: 1, overdue: 1 });
   assert.equal(metrics.topCustomers[0]?.name, 'ALBA');
 });
 
@@ -131,6 +143,25 @@ test('computeDashboardMetrics subtracts partial payments from overdue exposure',
   });
 
   assert.equal(metrics.overdueAmount, 600n);
+});
+
+test('computeUpcomingFollowUps buckets due dates relative to now', () => {
+  const buckets = computeUpcomingFollowUps(
+    [
+      { followUpDue: ts('2026-03-20T09:00:00Z'), followUpDone: false },
+      { followUpDue: ts('2026-03-24T09:00:00Z'), followUpDone: false },
+      { followUpDue: ts('2026-03-19T09:00:00Z'), followUpDone: false },
+      { followUpDue: ts('2026-03-22T09:00:00Z'), followUpDone: true },
+    ],
+    ts('2026-03-20T00:00:00Z').microsSinceUnixEpoch,
+  );
+
+  assert.deepEqual(buckets, { dueToday: 1, dueSoon: 1, overdue: 1 });
+});
+
+test('computeCashRunwayDays returns zero for negative cash and null for zero burn', () => {
+  assert.equal(computeCashRunwayDays(-1_000n), 0);
+  assert.equal(computeCashRunwayDays(10_000n, 0n), null);
 });
 
 if (failures.length > 0) {

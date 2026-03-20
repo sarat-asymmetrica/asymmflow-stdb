@@ -9,7 +9,6 @@
     activityLogs,
     pipelines,
     orders,
-    purchaseOrders,
     nicknameMap,
   } from '../db';
   import { computeDashboardMetrics } from '../business/dashboardMetrics';
@@ -42,6 +41,7 @@
       pipelines: $pipelines as never,
       orders: $orders as never,
       moneyEvents: $moneyEvents as never,
+      activityLogs: $activityLogs as never,
       nowMicros,
     })
   );
@@ -73,6 +73,9 @@
   let collectionRateColor = $derived(
     collectionRatePct >= 90 ? 'sage' : collectionRatePct >= 75 ? 'muted' : 'coral'
   );
+  let cashPosition = $derived(dashboardMetrics.cashPosition);
+  let runwayDays = $derived(dashboardMetrics.cashRunwayDays);
+  let followUps = $derived(dashboardMetrics.followUps);
 
   // ── Overdue decision cards ─────────────────────────────────────────────────
   // Top overdue customers with aging data for the timeline bar
@@ -307,6 +310,13 @@
   let kpiCollectionColor = $derived(
     hasData ? (collectionRatePct >= 90 ? 'sage' : collectionRatePct >= 75 ? 'muted' : 'coral') : 'coral'
   );
+  let miniCashPosition = $derived(hasData ? formatBHD(cashPosition) : '8,250');
+  let miniRunway = $derived(hasData ? (runwayDays === null ? 'n/a' : `${runwayDays}d`) : '55d');
+  let miniFollowUps = $derived(
+    hasData
+      ? `${followUps.overdue} overdue | ${followUps.dueToday} today | ${followUps.dueSoon} soon`
+      : '1 overdue | 2 today | 3 soon'
+  );
 </script>
 
 <div class="dashboard">
@@ -365,7 +375,25 @@
   </section>
 
   <!-- ── Bottom section: 5:3 ───────────────────────────────────────────── -->
-  <div class="dash-bottom" use:enter={{ index: 2 }}>
+  <section class="mini-strip" use:enter={{ index: 2 }}>
+    <div class="mini-card">
+      <span class="mini-label">Cash Position</span>
+      <span class="mini-value">{miniCashPosition} BHD</span>
+      <span class="mini-sub">Collected minus supplier payouts</span>
+    </div>
+    <div class="mini-card">
+      <span class="mini-label">Cash Runway</span>
+      <span class="mini-value">{miniRunway}</span>
+      <span class="mini-sub">Using default monthly burn model</span>
+    </div>
+    <div class="mini-card">
+      <span class="mini-label">Follow-ups</span>
+      <span class="mini-value">{miniFollowUps}</span>
+      <span class="mini-sub">ActivityLog follow-up due windows</span>
+    </div>
+  </section>
+
+  <div class="dash-bottom" use:enter={{ index: 3 }}>
 
     <!-- LEFT — Overdue Decision Cards -->
     <section class="overdue-section">
@@ -514,8 +542,46 @@
     gap: var(--sp-21);
   }
 
+  .mini-strip {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sp-16);
+  }
+
+  .mini-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+    padding: var(--sp-16);
+    border-radius: 14px;
+    background: var(--paper-card);
+    box-shadow:
+      -5px -5px 12px rgba(253, 251, 247, 0.68),
+       5px  5px 12px rgba(170, 160, 142, 0.22);
+  }
+
+  .mini-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-40);
+  }
+
+  .mini-value {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .mini-sub {
+    font-size: 11px;
+    color: var(--ink-40);
+  }
+
   @media (max-width: 900px) {
     .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+    .mini-strip { grid-template-columns: 1fr; }
   }
 
   @media (max-width: 500px) {

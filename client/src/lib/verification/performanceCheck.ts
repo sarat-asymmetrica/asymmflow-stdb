@@ -164,7 +164,7 @@ const rows = [
   measure('quotation document definition', 100, () => {
     buildQuotationDocDefinition({
       party: sampleParty,
-      items: [{ description: 'Pressure transmitter', quantity: 3, unitPriceFils: 1_000_000n }],
+      items: [{ description: 'Pressure transmitter', quantity: 3, unit: 'EA', unitPriceFils: 1_000_000n }],
       validityDays: 30,
       deliveryTimeline: '4 weeks',
     });

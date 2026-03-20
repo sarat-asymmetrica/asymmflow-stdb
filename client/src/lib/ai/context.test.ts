@@ -41,9 +41,11 @@ test('buildSystemPrompt includes operational counts and new skill guidance', () 
   );
 
   assert.match(prompt, /Purchase orders: 5\s+\|\s+Delivery notes: 7\s+\|\s+GRNs: 4/);
-  assert.match(prompt, /predict_payment_date — Predict Payment Date/);
-  assert.match(prompt, /generate_purchase_order skill/);
-  assert.match(prompt, /generate_delivery_note skill/);
+  assert.match(prompt, /predict_payment_date .* Predict Payment Date/);
+  assert.match(prompt, /generate_purchase_order .* Generate Purchase Order/);
+  assert.match(prompt, /generate_delivery_note .* Generate Delivery Note/);
+  assert.match(prompt, /PRODUCT MARKUP FLOORS/);
+  assert.match(prompt, /E\+H Flow: min 12%, target 20%, max discount from target 5%/);
 });
 
 test('buildBusinessState floors outstanding at zero and formats collection rate without bigint underflow', async () => {

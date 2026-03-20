@@ -390,6 +390,7 @@
         return {
           description: item.description.trim(),
           quantity: Math.max(1, Math.floor(item.quantity)),
+          unit: 'EA',
           unitPriceFils: fils,
         };
       });

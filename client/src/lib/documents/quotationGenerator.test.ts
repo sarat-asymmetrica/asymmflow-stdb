@@ -67,8 +67,8 @@ function createQuotationData(): QuotationData {
       updatedAt: ts(1n),
     } as never,
     items: [
-      { description: 'Portable gas analyzer', quantity: 2, unitPriceFils: 5_500_000n },
-      { description: 'Commissioning', quantity: 1, unitPriceFils: 1_250_000n },
+      { description: 'Portable gas analyzer', quantity: 2, unit: 'EA', unitPriceFils: 5_500_000n },
+      { description: 'Commissioning', quantity: 1, unit: 'LOT', unitPriceFils: 1_250_000n },
     ],
     validityDays: 30,
     deliveryTimeline: '4-6 weeks from PO',
@@ -88,8 +88,8 @@ test('quotationGenerator renders buyer block, validity, and delivery terms', () 
   const { docDef, quotNo } = buildQuotationDocDefinition(createQuotationData());
   const allText = extractText(docDef).join(' | ');
 
-  assert.match(quotNo, /^QOT-\d{4}-\d{3}$/);
-  assert.match(allText, /QUOTATION/);
+  assert.match(quotNo, /^PH\d{4}-\d{4}$/);
+  assert.match(allText, /PROFORMA INVOICE/);
   assert.match(allText, /Tatweer Petroleum/);
   assert.match(allText, /Maintenance Team/);
   assert.match(allText, /4-6 weeks from PO/);
@@ -100,12 +100,11 @@ test('quotationGenerator totals include VAT and grand total', () => {
   const { docDef } = buildQuotationDocDefinition(createQuotationData());
   const allText = extractText(docDef).join(' | ');
 
-  assert.match(allText, /Sub Total/);
-  assert.match(allText, /VAT @ 10%/);
-  assert.match(allText, /Grand Total/);
-  assert.match(allText, /12,250\.000|12\.250/);
+  assert.match(allText, /VAT 10%/);
+  assert.match(allText, /TOTAL/);
   assert.match(allText, /1,225\.000|1\.225/);
   assert.match(allText, /13,475\.000|13\.475/);
+  assert.match(allText, /\(THIRTEEN THOUSAND FOUR HUNDRED SEVENTY-FIVE BAHRAINI DINARS ONLY\)/);
 });
 
 let failures = 0;

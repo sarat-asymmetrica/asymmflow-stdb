@@ -34,6 +34,11 @@ export type DashboardMoneyEvent = {
   createdAt: TimestampLike;
 };
 
+export type DashboardActivityLog = {
+  followUpDue?: TimestampLike;
+  followUpDone?: boolean;
+};
+
 export type TopCustomerRow = {
   partyId: bigint;
   name: string;
@@ -109,11 +114,58 @@ export function computeGradeDistribution(parties: DashboardParty[]) {
   }));
 }
 
+export function computeCashRunwayDays(cashPositionFils: bigint, monthlyBurnFils = 4_500_000n): number | null {
+  if (monthlyBurnFils <= 0n) return null;
+  if (cashPositionFils <= 0n) return 0;
+
+  const dailyBurnFils = Number(monthlyBurnFils) / 30;
+  return dailyBurnFils > 0 ? Math.floor(Number(cashPositionFils) / dailyBurnFils) : null;
+}
+
+export function computeUpcomingFollowUps(
+  activityLogs: DashboardActivityLog[],
+  nowMicros: bigint,
+  windowDays = 7,
+): { dueToday: number; dueSoon: number; overdue: number } {
+  const nowDate = new Date(Number(nowMicros / 1000n));
+  const endMicros = nowMicros + BigInt(windowDays) * 86_400_000_000n;
+  let dueToday = 0;
+  let dueSoon = 0;
+  let overdue = 0;
+
+  for (const log of activityLogs) {
+    if (!log.followUpDue || log.followUpDone) continue;
+    const dueMicros = log.followUpDue.microsSinceUnixEpoch;
+    if (dueMicros < nowMicros) {
+      overdue += 1;
+      continue;
+    }
+
+    const dueDate = new Date(Number(dueMicros / 1000n));
+    const isSameUtcDay =
+      dueDate.getUTCFullYear() === nowDate.getUTCFullYear() &&
+      dueDate.getUTCMonth() === nowDate.getUTCMonth() &&
+      dueDate.getUTCDate() === nowDate.getUTCDate();
+
+    if (isSameUtcDay) {
+      dueToday += 1;
+      continue;
+    }
+
+    if (dueMicros <= endMicros) {
+      dueSoon += 1;
+    }
+  }
+
+  return { dueToday, dueSoon, overdue };
+}
+
 export function computeDashboardMetrics(args: {
   parties: DashboardParty[];
   pipelines: DashboardPipeline[];
   orders: DashboardOrder[];
   moneyEvents: DashboardMoneyEvent[];
+  activityLogs?: DashboardActivityLog[];
   nowMicros: bigint;
 }) {
   const customerInvoices = args.moneyEvents.filter((event) => event.kind.tag === 'CustomerInvoice');
@@ -152,6 +204,8 @@ export function computeDashboardMetrics(args: {
   const supplierCount = args.parties.filter((party) => party.isSupplier).length;
   const collectionRatePct =
     totalInvoiced === 0n ? 0 : Math.round(Number((totalCollected * 10000n) / totalInvoiced) / 100);
+  const followUps = computeUpcomingFollowUps(args.activityLogs ?? [], args.nowMicros);
+  const cashRunwayDays = computeCashRunwayDays(cashPosition);
 
   return {
     revenueMtd,
@@ -166,6 +220,8 @@ export function computeDashboardMetrics(args: {
     customerCount,
     supplierCount,
     collectionRatePct,
+    cashRunwayDays,
+    followUps,
     topCustomers: computeTopCustomersByOutstanding(args.parties, args.moneyEvents),
     gradeDistribution: computeGradeDistribution(args.parties),
   };

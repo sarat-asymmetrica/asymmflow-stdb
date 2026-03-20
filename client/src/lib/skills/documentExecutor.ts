@@ -434,6 +434,7 @@ async function handleGenerateQuotation(
   const items: QuotationItem[] = rawItems.map((it: any) => ({
     description: String(it.description ?? ''),
     quantity: Number(it.quantity ?? 1),
+    unit: String(it.unit ?? 'EA'),
     unitPriceFils: BigInt(Math.round(Number(it.unitPriceFils ?? 0))),
   }));
 

@@ -1,6 +1,7 @@
 import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 import { PH_LETTERHEAD_BASE64 } from './letterhead';
+import { filsToBahrainiWords } from './moneyWords';
 import type { MoneyEvent, Party, LineItem } from '../stdb_generated/types';
 import { formatBHD, formatDate } from '../format';
 import { getConnection } from '../db';
@@ -111,62 +112,8 @@ const SELLER = {
 
 const VAT_RATE = 10;
 
-const ones = [
-  '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
-  'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
-  'Seventeen', 'Eighteen', 'Nineteen',
-];
-const tens = [
-  '', '', 'Twenty', 'Thirty', 'Forty', 'Fifty',
-  'Sixty', 'Seventy', 'Eighty', 'Ninety',
-];
-
-function threeDigitsToWords(n: number): string {
-  if (n === 0) return '';
-  if (n < 20) return ones[n];
-  if (n < 100) {
-    const t = tens[Math.floor(n / 10)];
-    const o = ones[n % 10];
-    return o ? `${t}-${o}` : t;
-  }
-  const h = ones[Math.floor(n / 100)];
-  const rest = n % 100;
-  return rest === 0 ? `${h} hundred` : `${h} hundred ${threeDigitsToWords(rest)}`;
-}
-
-function wholeNumberToWords(n: number): string {
-  if (n === 0) return 'Zero';
-  const parts: string[] = [];
-  const billions = Math.floor(n / 1_000_000_000);
-  const millions = Math.floor((n % 1_000_000_000) / 1_000_000);
-  const thousands = Math.floor((n % 1_000_000) / 1_000);
-  const remainder = n % 1_000;
-
-  if (billions) parts.push(`${threeDigitsToWords(billions)} billion`);
-  if (millions) parts.push(`${threeDigitsToWords(millions)} million`);
-  if (thousands) parts.push(`${threeDigitsToWords(thousands)} thousand`);
-  if (remainder) parts.push(threeDigitsToWords(remainder));
-
-  return parts.join(' ');
-}
-
 export function filsToWords(fils: bigint): string {
-  const total = Number(fils);
-  const dinars = Math.floor(total / 1000);
-  const filsPart = total % 1000;
-  const parts: string[] = [];
-
-  if (dinars > 0) {
-    const dinarWords = wholeNumberToWords(dinars);
-    parts.push(`${dinarWords} Bahraini ${dinars === 1 ? 'Dinar' : 'Dinars'}`);
-  }
-
-  if (filsPart > 0) {
-    parts.push(`${threeDigitsToWords(filsPart)} fils`);
-  }
-
-  if (parts.length === 0) return 'Zero Bahraini Dinars';
-  return parts.join(' and ');
+  return filsToBahrainiWords(fils);
 }
 
 export function getNextInvoiceNumber(): string {

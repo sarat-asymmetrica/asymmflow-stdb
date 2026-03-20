@@ -33,6 +33,7 @@ import {
 import { getSkillsForRole, canExecuteSkill } from '../skills/registry';
 import type { UserRole } from '../skills/types';
 import { formatBHD } from '../format';
+import { getInvariantsSummary } from '../business/invariants';
 
 // ── Business state snapshot ───────────────────────────────────────────────────
 
@@ -543,7 +544,10 @@ IMPORTANT ACCOUNTING NOTE
   "Outstanding" is NEVER stored in the database. It is always computed as:
     outstanding = sum(CustomerInvoice.totalFils) - sum(CustomerPayment.totalFils)
   This is a fundamental invariant. When answering questions about what a customer owes,
-  always frame it as this computed difference — never as a stored field.
+  always frame it as this computed difference - never as a stored field.
+
+PRICING AND CREDIT POLICY
+${getInvariantsSummary()}
 
 AVAILABLE SKILLS (you may invoke these for ${userName})
 ${skillList || '  (no executable skills for this role)'}
