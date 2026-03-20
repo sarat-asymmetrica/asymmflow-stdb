@@ -579,6 +579,53 @@ const SKILLS: SkillDefinition[] = [
     ],
   },
 
+  {
+    name: 'generate_contract',
+    displayName: 'Generate Contract',
+    description:
+      'Generate a commercial contract with grade-based clause selection, VAT computation, and PH Trading standard terms.',
+    category: 'data',
+    approval: 'explicit',
+    requiredRoles: ['Admin', 'Manager', 'Sales'],
+    parameters: [
+      {
+        name: 'partyId',
+        type: 'number',
+        required: true,
+        description: 'Customer party ID.',
+      },
+      {
+        name: 'items',
+        type: 'string',
+        required: true,
+        description: 'JSON array of line items: [{ description, quantity, unitPriceFils }].',
+      },
+      {
+        name: 'deliveryTerms',
+        type: 'string',
+        required: false,
+        description: 'Delivery terms, e.g. "CIF Bahrain". Defaults to "EXW Bahrain".',
+      },
+      {
+        name: 'validityDays',
+        type: 'number',
+        required: false,
+        description: 'Contract validity in days. Defaults to 90.',
+      },
+    ],
+  },
+
+  {
+    name: 'evaluate_alerts',
+    displayName: 'Business Alerts',
+    description:
+      'Evaluate all business conditions and generate alerts for credit breaches, overdue invoices, stale pipelines, and other critical/warning/info conditions.',
+    category: 'intelligence',
+    approval: 'auto',
+    requiredRoles: ['Admin', 'Manager', 'Sales', 'Operations', 'Accountant'],
+    parameters: [],
+  },
+
   // ── INTELLIGENCE SKILLS ───────────────────────────────────────────────────────
 
   {

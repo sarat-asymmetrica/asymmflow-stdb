@@ -43,6 +43,8 @@ import type { TallyImportMode } from '../business/tallyImport';
 import { parseBankStatementCsv } from '../business/bankReconciliation';
 import { Timestamp } from 'spacetimedb';
 import { computeVATReturn, getQuarterlyPeriods, formatVATReturnReport } from '../business/vatReturn';
+import { generateContract, formatContractText } from '../documents/contractGenerator';
+import { evaluateAlerts, sortAlerts, countBySeverity, formatAlertSummary } from '../business/alertSystem';
 import {
   generateSalesReport, generateCollectionsReport, generatePayablesReport,
   formatSalesReport, formatCollectionsReport, formatPayablesReport,
@@ -1040,6 +1042,96 @@ async function handleGeneratePayablesReport(params: Record<string, unknown>): Pr
   };
 }
 
+// ── Contract + alerts handlers ───────────────────────────────────────────────
+
+async function handleGenerateContract(params: Record<string, unknown>): Promise<SkillResult> {
+  const partyId = params.partyId;
+  if (partyId == null) {
+    return { success: false, summary: 'partyId is required.', error: 'missing_param' };
+  }
+
+  const allParties = get(parties);
+  const party = allParties.find((p) => p.id === BigInt(Number(partyId)));
+  if (!party) {
+    return { success: false, summary: `Customer #${partyId} not found.`, error: 'not_found' };
+  }
+
+  let rawItems = params.items;
+  if (typeof rawItems === 'string') {
+    try { rawItems = JSON.parse(rawItems); } catch { return { success: false, summary: 'items is not valid JSON.', error: 'invalid_param' }; }
+  }
+  if (!Array.isArray(rawItems) || rawItems.length === 0) {
+    return { success: false, summary: 'items array is required and must be non-empty.', error: 'missing_param' };
+  }
+
+  const items = rawItems.map((it: Record<string, unknown>) => ({
+    description: String(it.description ?? ''),
+    quantity: Number(it.quantity ?? 1),
+    unitPriceFils: BigInt(Math.round(Number(it.unitPriceFils ?? 0))),
+  }));
+
+  const grade = (party.grade as { tag: string })?.tag ?? 'B';
+  const contract = generateContract({
+    party: {
+      name: party.name,
+      grade,
+      paymentTermsDays: Number(party.paymentTermsDays),
+      creditLimitFils: party.creditLimitFils,
+    },
+    items,
+    contractNumber: `CON-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`,
+    issueDate: new Date().toISOString().slice(0, 10),
+    validityDays: params.validityDays != null ? Number(params.validityDays) : 90,
+    deliveryTerms: params.deliveryTerms != null ? String(params.deliveryTerms) : 'EXW Bahrain',
+    specialConditions: params.specialConditions != null ? String(params.specialConditions) : undefined,
+  });
+
+  const text = formatContractText(contract);
+
+  return {
+    success: true,
+    summary: `Contract ${contract.contractNumber} generated for ${party.name} (Grade ${grade}, ${items.length} items, BHD ${formatBHD(contract.totalFils)}).`,
+    data: {
+      contractNumber: contract.contractNumber,
+      partyName: party.name,
+      grade,
+      clauseCount: contract.clauses.length,
+      totalFils: String(contract.totalFils),
+      report: text,
+    },
+  };
+}
+
+async function handleEvaluateAlerts(): Promise<SkillResult> {
+  const alerts = evaluateAlerts({
+    parties: get(parties) as never,
+    moneyEvents: get(moneyEvents) as never,
+    pipelines: get(pipelines) as never,
+    nowMicros: BigInt(Date.now()) * 1000n,
+  });
+
+  const sorted = sortAlerts(alerts);
+  const counts = countBySeverity(alerts);
+  const summary = formatAlertSummary(alerts);
+
+  return {
+    success: true,
+    summary: `${alerts.length} alert${alerts.length !== 1 ? 's' : ''}: ${counts.critical} critical, ${counts.warning} warning, ${counts.info} info.`,
+    data: {
+      totalAlerts: alerts.length,
+      counts,
+      alerts: sorted.map(a => ({
+        severity: a.severity,
+        category: a.category,
+        title: a.title,
+        message: a.message,
+        actionLabel: a.actionLabel,
+      })),
+      report: summary,
+    },
+  };
+}
+
 // ── Public entry point ────────────────────────────────────────────────────────
 
 /**
@@ -1193,6 +1285,12 @@ export async function executeSkill(
 
       case 'generate_payables_report':
         return await handleGeneratePayablesReport(params);
+
+      case 'generate_contract':
+        return await handleGenerateContract(params);
+
+      case 'evaluate_alerts':
+        return await handleEvaluateAlerts();
 
       default:
         return {
