@@ -3,6 +3,7 @@
   // Invoices | Payments | AR Aging
 
   import { parties, moneyEvents, lineItems, bankTransactions as stdbBankTransactions, getConnection } from '../db';
+  import { toast } from '../stores';
   import { formatBHD, formatDate } from '../format';
   import { Timestamp } from 'spacetimedb';
   import CreateInvoiceModal from '../components/CreateInvoiceModal.svelte';
@@ -10,6 +11,7 @@
   import { generateInvoicePdf } from '../documents/invoiceGenerator';
   import { generateStatementPdf } from '../documents/statementGenerator';
   import { computeARAgingRows, computeARAgingTotals } from '../business/arAging';
+  import { buildPaymentCandidates, parseBankStatementCsv, suggestMatches } from '../business/bankReconciliation';
   import { enter } from '$lib/motion/asymm-motion';
 
   let showCreateInvoice = $state(false);
@@ -18,10 +20,19 @@
   let searchQuery = $state('');
   let statusFilter = $state('all');
   let selectedStatementPartyId = $state<bigint | null>(null);
+  let bankSearchQuery = $state('');
+  let bankStatusFilter = $state('Unmatched');
+  let bankImportBankName = $state('NBB');
+  let importingBankStatement = $state(false);
+  let selectedBankTransactionId = $state<bigint | null>(null);
+  let selectedCandidateId = $state<bigint | null>(null);
+  let bankActionInFlight = $state(false);
+  let bankImportInput: HTMLInputElement | null = null;
 
   const tabs = [
     { id: 'invoices', label: 'Invoices' },
     { id: 'payments', label: 'Payments' },
+    { id: 'bank', label: 'Bank Recon' },
     { id: 'aging', label: 'AR Aging' },
   ];
 
@@ -194,6 +205,107 @@
 
   let displayPayments = $derived(useLiveData ? paymentRows : DEMO_PAYMENTS);
 
+  let reconciliationEventRows = $derived.by(() =>
+    $moneyEvents
+      .filter((ev) =>
+        ((ev.kind as any)?.tag === 'CustomerPayment' || (ev.kind as any)?.tag === 'SupplierPayment') &&
+        (ev.status as any)?.tag !== 'Draft' &&
+        (ev.status as any)?.tag !== 'Cancelled'
+      )
+      .map((ev) => {
+        const party = partyMap.get(ev.partyId);
+        const kind = (ev.kind as any)?.tag ?? 'Payment';
+        return {
+          moneyEventId: ev.id,
+          partyName: party?.name ?? '—',
+          kind,
+          reference: ev.reference,
+          amountFils: ev.totalFils,
+          signedAmountFils: kind === 'SupplierPayment' ? -ev.totalFils : ev.totalFils,
+          createdAtMicros: ev.createdAt.microsSinceUnixEpoch,
+          createdAtLabel: formatDate(ev.createdAt),
+        };
+      })
+      .sort((a, b) => Number(b.createdAtMicros - a.createdAtMicros))
+  );
+
+  let reconciliationEventMap = $derived.by(
+    () => new Map(reconciliationEventRows.map((row) => [row.moneyEventId, row]))
+  );
+
+  let paymentCandidates = $derived.by(() =>
+    buildPaymentCandidates({
+      parties: $parties,
+      moneyEvents: $moneyEvents,
+      bankTransactions: $stdbBankTransactions,
+    })
+  );
+
+  let paymentCandidateMap = $derived.by(
+    () => new Map(paymentCandidates.map((candidate) => [candidate.moneyEventId, candidate]))
+  );
+
+  let bankTransactionsSorted = $derived.by(() =>
+    [...$stdbBankTransactions].sort((left, right) => {
+      const dateDiff = right.transactionDate.microsSinceUnixEpoch - left.transactionDate.microsSinceUnixEpoch;
+      if (dateDiff !== 0n) return Number(dateDiff);
+      return Number(right.id - left.id);
+    })
+  );
+
+  let bankReconCounts = $derived.by(() =>
+    bankTransactionsSorted.reduce(
+      (summary, transaction) => {
+        const status = (transaction.matchStatus as any)?.tag ?? 'Unmatched';
+        if (status === 'Matched') summary.matched += 1;
+        else if (status === 'Disputed') summary.disputed += 1;
+        else summary.unmatched += 1;
+        return summary;
+      },
+      { matched: 0, unmatched: 0, disputed: 0 }
+    )
+  );
+
+  let filteredBankTransactions = $derived.by(() => {
+    const query = bankSearchQuery.trim().toLowerCase();
+    return bankTransactionsSorted.filter((transaction) => {
+      const status = (transaction.matchStatus as any)?.tag ?? 'Unmatched';
+      if (bankStatusFilter !== 'All' && status !== bankStatusFilter) return false;
+      if (!query) return true;
+      return (
+        transaction.description.toLowerCase().includes(query) ||
+        transaction.reference.toLowerCase().includes(query) ||
+        transaction.bankName.toLowerCase().includes(query)
+      );
+    });
+  });
+
+  let selectedBankTransaction = $derived.by(
+    () => bankTransactionsSorted.find((transaction) => transaction.id === selectedBankTransactionId) ?? null
+  );
+
+  let selectedBankSuggestions = $derived.by(() => {
+    if (!selectedBankTransaction) return [];
+    return suggestMatches(selectedBankTransaction, paymentCandidates);
+  });
+
+  let suggestionScoreMap = $derived.by(
+    () => new Map(selectedBankSuggestions.map((suggestion) => [suggestion.moneyEventId, suggestion.score]))
+  );
+
+  let displayedPaymentCandidates = $derived.by(() =>
+    [...paymentCandidates].sort((left, right) => {
+      const leftScore = suggestionScoreMap.get(left.moneyEventId) ?? 0;
+      const rightScore = suggestionScoreMap.get(right.moneyEventId) ?? 0;
+      if (leftScore !== rightScore) return rightScore - leftScore;
+      return Number(right.createdAtMicros - left.createdAtMicros);
+    })
+  );
+
+  let matchedBankTransactions = $derived.by(() =>
+    bankTransactionsSorted.filter((transaction) => ((transaction.matchStatus as any)?.tag ?? 'Unmatched') !== 'Unmatched')
+  );
+
   // ── MTD received (current month) ─────────────────────
 
   let mtdReceived = $derived.by(() => {
@@ -279,6 +391,157 @@
     const source = useLiveData ? agingRows.map(r => r.outstandingFils) : DEMO_AGING.map(r => r.total);
     return Math.max(...source.map(v => Number(v)), 1);
   }
+
+  function resetBankImportInput() {
+    if (bankImportInput) bankImportInput.value = '';
+  }
+
+  function triggerBankImportPicker() {
+    bankImportInput?.click();
+  }
+
+  function formatMatchStatus(status: string): string {
+    if (status === 'Matched') return 'sage';
+    if (status === 'Disputed') return 'coral';
+    return 'amber';
+  }
+
+  async function handleBankImportSelected(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const conn = getConnection();
+    if (!conn) {
+      toast.danger('Not connected to the database.');
+      resetBankImportInput();
+      return;
+    }
+
+    importingBankStatement = true;
+    try {
+      const csvText = await file.text();
+      const rows = parseBankStatementCsv(csvText, bankImportBankName.trim() || 'Bank');
+      for (const row of rows) {
+        await conn.reducers.importBankTransaction({
+          bankName: row.bankName,
+          transactionDate: Timestamp.fromDate(row.transactionDate),
+          description: row.description,
+          amountFils: row.amountFils,
+          reference: row.reference,
+        });
+      }
+      toast.success(`Imported ${rows.length} bank transaction${rows.length === 1 ? '' : 's'} from ${file.name}.`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.danger(`Could not import bank statement: ${message}`);
+    } finally {
+      importingBankStatement = false;
+      resetBankImportInput();
+    }
+  }
+
+  async function handleMatchBankTransaction(moneyEventId: bigint) {
+    if (!selectedBankTransaction) {
+      toast.warning('Choose a bank transaction first.');
+      return;
+    }
+
+    const candidate = paymentCandidateMap.get(moneyEventId);
+    if (!candidate) {
+      toast.warning('That payment is no longer available for matching.');
+      return;
+    }
+
+    if (candidate.signedAmountFils !== selectedBankTransaction.amountFils) {
+      toast.danger('Amount mismatch: bank transaction and payment must match exactly before reconciliation.');
+      return;
+    }
+
+    const conn = getConnection();
+    if (!conn) {
+      toast.danger('Not connected to the database.');
+      return;
+    }
+
+    bankActionInFlight = true;
+    try {
+      await conn.reducers.matchBankTransaction({
+        bankTransactionId: selectedBankTransaction.id,
+        moneyEventId,
+      });
+      toast.success(`Matched bank transaction to ${candidate.partyName}.`);
+      selectedCandidateId = null;
+      selectedBankTransactionId = null;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.danger(`Could not match bank transaction: ${message}`);
+    } finally {
+      bankActionInFlight = false;
+    }
+  }
+
+  async function handleDisputeSelectedBankTransaction() {
+    if (!selectedBankTransaction) return;
+    const conn = getConnection();
+    if (!conn) {
+      toast.danger('Not connected to the database.');
+      return;
+    }
+
+    bankActionInFlight = true;
+    try {
+      await conn.reducers.disputeBankTransaction({ bankTransactionId: selectedBankTransaction.id });
+      toast.info(`Bank transaction #${selectedBankTransaction.id} marked disputed.`);
+      selectedBankTransactionId = null;
+      selectedCandidateId = null;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.danger(`Could not dispute bank transaction: ${message}`);
+    } finally {
+      bankActionInFlight = false;
+    }
+  }
+
+  async function handleUnmatchBankTransaction(transactionId: bigint) {
+    const conn = getConnection();
+    if (!conn) {
+      toast.danger('Not connected to the database.');
+      return;
+    }
+
+    bankActionInFlight = true;
+    try {
+      await conn.reducers.unmatchBankTransaction({ bankTransactionId: transactionId });
+      toast.info(`Bank transaction #${transactionId} returned to unmatched.`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.danger(`Could not unmatch bank transaction: ${message}`);
+    } finally {
+      bankActionInFlight = false;
+    }
+  }
+
+  $effect(() => {
+    if (!selectedBankTransaction) {
+      selectedCandidateId = null;
+      return;
+    }
+
+    const transactionStillVisible = bankTransactionsSorted.some((transaction) => transaction.id === selectedBankTransaction.id);
+    if (!transactionStillVisible) {
+      selectedBankTransactionId = null;
+      selectedCandidateId = null;
+      return;
+    }
+
+    if (selectedCandidateId && paymentCandidateMap.has(selectedCandidateId)) {
+      return;
+    }
+
+    const topSuggestion = selectedBankSuggestions[0];
+    selectedCandidateId = topSuggestion?.moneyEventId ?? paymentCandidates[0]?.moneyEventId ?? null;
+  });
 </script>
 
 <div class="hub-page">
@@ -468,6 +731,263 @@
         </div>
       {/if}
 
+    <!-- BANK RECON TAB -->
+    {:else if activeTab === 'bank'}
+      <div class="bank-summary-grid">
+        <div class="bank-summary-card card-subtle">
+          <span class="bank-summary-label">Unmatched</span>
+          <span class="bank-summary-value kpi-amber">{bankReconCounts.unmatched}</span>
+        </div>
+        <div class="bank-summary-card card-subtle">
+          <span class="bank-summary-label">Matched</span>
+          <span class="bank-summary-value kpi-sage">{bankReconCounts.matched}</span>
+        </div>
+        <div class="bank-summary-card card-subtle">
+          <span class="bank-summary-label">Disputed</span>
+          <span class="bank-summary-value kpi-coral">{bankReconCounts.disputed}</span>
+        </div>
+        <div class="bank-summary-card card">
+          <span class="bank-summary-label">Open Payment Candidates</span>
+          <span class="bank-summary-value">{paymentCandidates.length}</span>
+        </div>
+      </div>
+
+      <div class="filter-bar bank-toolbar">
+        <input
+          class="search-neu"
+          type="search"
+          placeholder="Search bank transactions..."
+          bind:value={bankSearchQuery}
+          aria-label="Search bank transactions"
+        />
+        <select class="select-neu" bind:value={bankStatusFilter} aria-label="Filter bank transactions by status">
+          <option value="Unmatched">Unmatched</option>
+          <option value="Matched">Matched</option>
+          <option value="Disputed">Disputed</option>
+          <option value="All">All</option>
+        </select>
+        <input
+          class="bank-name-input"
+          type="text"
+          placeholder="Bank name"
+          bind:value={bankImportBankName}
+          aria-label="Bank name for import"
+        />
+        <button class="btn btn-gold btn-sm" onclick={triggerBankImportPicker} disabled={importingBankStatement}>
+          {importingBankStatement ? 'Importing…' : 'Import CSV'}
+        </button>
+        <span class="filter-count">CSV import today, Excel/PDF next tranche.</span>
+      </div>
+
+      <div class="bank-recon-grid">
+        <section class="bank-panel card">
+          <div class="bank-panel-header">
+            <div>
+              <h3 class="bank-panel-title">Bank Transactions</h3>
+              <p class="bank-panel-subtitle">Select a row to reconcile against open payment events.</p>
+            </div>
+            <span class="filter-count">{filteredBankTransactions.length} rows</span>
+          </div>
+
+          {#if filteredBankTransactions.length === 0}
+            <div class="empty-state bank-empty">
+              <div class="empty-glyph">&#9675;</div>
+              <p class="empty-msg">No bank transactions match this filter yet.</p>
+            </div>
+          {:else}
+            <div class="bank-list">
+              {#each filteredBankTransactions as transaction}
+                {@const status = (transaction.matchStatus as any)?.tag ?? 'Unmatched'}
+                {@const topSuggestion = suggestMatches(transaction, paymentCandidates)[0]}
+                <button
+                  class="bank-row"
+                  class:bank-row-active={selectedBankTransactionId === transaction.id}
+                  type="button"
+                  onclick={() => (selectedBankTransactionId = transaction.id)}
+                >
+                  <div class="bank-row-main">
+                    <div class="bank-row-topline">
+                      <span class="cell-date">{formatDate(transaction.transactionDate)}</span>
+                      <span class="badge badge-{formatMatchStatus(status)}">{status}</span>
+                    </div>
+                    <span class="bank-row-desc">{transaction.description}</span>
+                    <div class="bank-row-meta">
+                      <span class="cell-ref">{transaction.reference || `TXN-${transaction.id}`}</span>
+                      <span class:cell-amount-received={transaction.amountFils > 0n} class:cell-outstanding={transaction.amountFils < 0n} class="bank-row-amount">
+                        {fmtBHDRaw(transaction.amountFils)} BHD
+                      </span>
+                    </div>
+                    {#if topSuggestion && status === 'Unmatched'}
+                      <span class="bank-row-hint">Top match: {topSuggestion.partyName} ({topSuggestion.reference || 'no ref'})</span>
+                    {/if}
+                  </div>
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </section>
+
+        <section class="bank-panel card">
+          <div class="bank-panel-header">
+            <div>
+              <h3 class="bank-panel-title">Unmatched Payments</h3>
+              <p class="bank-panel-subtitle">Exact amount matching is enforced before a reconciliation can be saved.</p>
+            </div>
+          </div>
+
+          {#if !selectedBankTransaction}
+            <div class="empty-state bank-empty">
+              <div class="empty-glyph">&#9675;</div>
+              <p class="empty-msg">Choose a bank transaction from the left to see ranked payment candidates.</p>
+            </div>
+          {:else}
+            <div class="bank-detail card-inset">
+              <div class="bank-detail-header">
+                <div>
+                  <div class="cell-date">{formatDate(selectedBankTransaction.transactionDate)} · {selectedBankTransaction.bankName}</div>
+                  <div class="bank-detail-title">{selectedBankTransaction.description}</div>
+                  <div class="cell-ref">{selectedBankTransaction.reference || `TXN-${selectedBankTransaction.id}`}</div>
+                </div>
+                <div class="bank-detail-amount" class:cell-amount-received={selectedBankTransaction.amountFils > 0n} class:cell-outstanding={selectedBankTransaction.amountFils < 0n}>
+                  {fmtBHDRaw(selectedBankTransaction.amountFils)} BHD
+                </div>
+              </div>
+
+              <div class="bank-detail-actions">
+                <button
+                  class="btn btn-sm"
+                  disabled={!selectedCandidateId || bankActionInFlight}
+                  onclick={() => selectedCandidateId && handleMatchBankTransaction(selectedCandidateId)}
+                >
+                  Match Selected
+                </button>
+                <button
+                  class="btn btn-sm"
+                  disabled={selectedBankSuggestions.length === 0 || bankActionInFlight}
+                  onclick={() => selectedBankSuggestions[0] && handleMatchBankTransaction(selectedBankSuggestions[0].moneyEventId)}
+                >
+                  Auto-Match Top
+                </button>
+                <button
+                  class="btn btn-sm"
+                  disabled={bankActionInFlight}
+                  onclick={handleDisputeSelectedBankTransaction}
+                >
+                  Mark Disputed
+                </button>
+              </div>
+            </div>
+
+            {#if displayedPaymentCandidates.length === 0}
+              <div class="empty-state bank-empty">
+                <div class="empty-glyph">&#9675;</div>
+                <p class="empty-msg">No open payment events are available for matching.</p>
+              </div>
+            {:else}
+              <div class="candidate-list">
+                {#each displayedPaymentCandidates as candidate}
+                  {@const eventRow = reconciliationEventMap.get(candidate.moneyEventId)}
+                  {@const suggestion = selectedBankSuggestions.find((item) => item.moneyEventId === candidate.moneyEventId)}
+                  <button
+                    class="candidate-row"
+                    class:candidate-row-active={selectedCandidateId === candidate.moneyEventId}
+                    type="button"
+                    onclick={() => (selectedCandidateId = candidate.moneyEventId)}
+                  >
+                    <div class="candidate-row-topline">
+                      <span class="cell-name">{candidate.partyName}</span>
+                      <span class="candidate-score">{suggestion ? `${suggestion.score}% fit` : 'Manual'}</span>
+                    </div>
+                    <div class="candidate-row-meta">
+                      <span class="cell-ref">{candidate.reference || 'No reference'}</span>
+                      <span class="badge badge-muted">{candidate.kind === 'SupplierPayment' ? 'Supplier' : 'Customer'}</span>
+                    </div>
+                    <div class="candidate-row-bottom">
+                      <span class:cell-amount-received={candidate.signedAmountFils > 0n} class:cell-outstanding={candidate.signedAmountFils < 0n} class="bank-row-amount">
+                        {fmtBHDRaw(candidate.signedAmountFils)} BHD
+                      </span>
+                      <span class="cell-date">{eventRow?.createdAtLabel ?? '—'}</span>
+                    </div>
+                    {#if suggestion}
+                      <span class="candidate-reasons">{suggestion.reasons.join(' · ')}</span>
+                    {/if}
+                  </button>
+                {/each}
+              </div>
+            {/if}
+          {/if}
+        </section>
+      </div>
+
+      <section class="bank-panel card">
+        <div class="bank-panel-header">
+          <div>
+            <h3 class="bank-panel-title">Matched & Disputed Ledger</h3>
+            <p class="bank-panel-subtitle">Recent reconciled rows stay visible so finance can undo or inspect them quickly.</p>
+          </div>
+        </div>
+
+        {#if matchedBankTransactions.length === 0}
+          <div class="empty-state bank-empty">
+            <div class="empty-glyph">&#9675;</div>
+            <p class="empty-msg">No bank transactions have been reconciled yet.</p>
+          </div>
+        {:else}
+          <div class="table-shell card-inset">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th class="num-col">Amount</th>
+                  <th>Status</th>
+                  <th>Matched Event</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each matchedBankTransactions as transaction}
+                  {@const status = (transaction.matchStatus as any)?.tag ?? 'Unmatched'}
+                  {@const linkedEvent = transaction.matchedMoneyEventId ? reconciliationEventMap.get(transaction.matchedMoneyEventId) : null}
+                  <tr class="table-row">
+                    <td class="cell-date">{formatDate(transaction.transactionDate)}</td>
+                    <td>
+                      <div class="bank-ledger-cell">
+                        <span class="cell-name">{transaction.description}</span>
+                        <span class="cell-ref">{transaction.reference || `TXN-${transaction.id}`}</span>
+                      </div>
+                    </td>
+                    <td class="num-col">
+                      <span class:cell-amount-received={transaction.amountFils > 0n} class:cell-outstanding={transaction.amountFils < 0n} class="cell-amount">
+                        {fmtBHDRaw(transaction.amountFils)}
+                      </span>
+                    </td>
+                    <td><span class="badge badge-{formatMatchStatus(status)}">{status}</span></td>
+                    <td class="cell-sm">
+                      {#if linkedEvent}
+                        <div class="bank-ledger-cell">
+                          <span class="cell-name">{linkedEvent.partyName}</span>
+                          <span class="cell-ref">{linkedEvent.reference || linkedEvent.kind}</span>
+                        </div>
+                      {:else}
+                        <span class="cell-muted">Review required</span>
+                      {/if}
+                    </td>
+                    <td>
+                      {#if status === 'Matched'}
+                        <button class="pdf-btn" onclick={() => handleUnmatchBankTransaction(transaction.id)} disabled={bankActionInFlight}>
+                          Unmatch
+                        </button>
+                      {/if}
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {/if}
+      </section>
+
     <!-- AR AGING TAB -->
     {:else if activeTab === 'aging'}
       {@const displayAging = useLiveData ? agingRows : DEMO_AGING}
@@ -592,6 +1112,14 @@
 
   </div>
 </div>
+
+<input
+  bind:this={bankImportInput}
+  class="bank-import-input"
+  type="file"
+  accept=".csv,text/csv"
+  onchange={handleBankImportSelected}
+/>
 
 <CreateInvoiceModal open={showCreateInvoice} onclose={() => (showCreateInvoice = false)} />
 <RecordPaymentModal open={showRecordPayment} onclose={() => (showRecordPayment = false)} />
@@ -958,6 +1486,172 @@
     color: var(--sage);
   }
 
+  .bank-import-input {
+    display: none;
+  }
+
+  .bank-toolbar {
+    margin-bottom: var(--sp-13);
+  }
+
+  .bank-name-input {
+    height: 36px;
+    min-width: 120px;
+    background: var(--paper-card);
+    box-shadow: var(--shadow-neu-btn);
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 0 var(--sp-13);
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    color: var(--ink);
+  }
+
+  .bank-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--sp-13);
+    margin-bottom: var(--sp-16);
+  }
+
+  .bank-summary-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-5);
+    padding: var(--sp-13) var(--sp-16);
+    border-radius: 14px;
+  }
+
+  .bank-summary-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-30);
+  }
+
+  .bank-summary-value {
+    font-family: var(--font-data);
+    font-size: var(--text-xl);
+    color: var(--ink);
+  }
+
+  .bank-recon-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: var(--sp-16);
+    margin-bottom: var(--sp-16);
+  }
+
+  .bank-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-13);
+    padding: var(--sp-16);
+    border-radius: 14px;
+  }
+
+  .bank-panel-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--sp-13);
+  }
+
+  .bank-panel-title {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: var(--text-md);
+    color: var(--ink);
+  }
+
+  .bank-panel-subtitle {
+    margin: var(--sp-3) 0 0;
+    font-size: var(--text-xs);
+    color: var(--ink-30);
+  }
+
+  .bank-list,
+  .candidate-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+  }
+
+  .bank-row,
+  .candidate-row {
+    width: 100%;
+    text-align: left;
+    border: 1px solid transparent;
+    background: var(--paper-card);
+    box-shadow: var(--shadow-neu-btn);
+    border-radius: 12px;
+    padding: var(--sp-13);
+    cursor: pointer;
+    transition: border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+  }
+
+  .bank-row:hover,
+  .candidate-row:hover,
+  .bank-row-active,
+  .candidate-row-active {
+    border-color: var(--gold-soft);
+    transform: translateY(-1px);
+  }
+
+  .bank-row-main,
+  .bank-ledger-cell {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+  }
+
+  .bank-row-topline,
+  .candidate-row-topline,
+  .candidate-row-meta,
+  .candidate-row-bottom,
+  .bank-row-meta,
+  .bank-detail-header,
+  .bank-detail-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-8);
+    flex-wrap: wrap;
+  }
+
+  .bank-row-desc,
+  .bank-detail-title {
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .bank-row-amount,
+  .bank-detail-amount {
+    font-family: var(--font-data);
+    font-size: var(--text-sm);
+    font-weight: 500;
+  }
+
+  .bank-row-hint,
+  .candidate-reasons,
+  .candidate-score {
+    font-size: var(--text-xs);
+    color: var(--ink-30);
+  }
+
+  .bank-detail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-13);
+    padding: var(--sp-13);
+    border-radius: 12px;
+  }
+
+  .bank-empty {
+    padding: var(--sp-34) var(--sp-13);
+  }
+
   /* ── Aging summary ── */
   .aging-summary {
     margin-bottom: var(--sp-16);
@@ -1149,5 +1843,12 @@
     color: var(--ink-30);
     text-align: center;
     margin: 0;
+  }
+
+  @media (max-width: 980px) {
+    .bank-summary-grid,
+    .bank-recon-grid {
+      grid-template-columns: 1fr;
+    }
   }
 </style>
