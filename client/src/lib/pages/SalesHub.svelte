@@ -7,8 +7,26 @@
   import { generateQuotationPdf, downloadQuotationPdf } from '../documents/quotationGenerator';
   import type { QuotationItem } from '../documents/quotationGenerator';
   import { enter } from '$lib/motion/asymm-motion';
+  import { loadRFQStore, computeRFQDashboard, type RFQDashboard } from '../business/rfqManagement';
 
-  let activeTab = $state<'pipeline' | 'won' | 'lost'>('pipeline');
+  let activeTab = $state<'pipeline' | 'won' | 'lost' | 'rfqs'>('pipeline');
+
+  // ── RFQ state ───────────────────────────────────────────────────────────
+  let rfqStore = $state(loadRFQStore());
+  let rfqDashboard = $derived(computeRFQDashboard(
+    rfqStore,
+    $pipelines as never,
+    new Date().toISOString().slice(0, 10),
+  ));
+
+  const DEMO_RFQS = [
+    { pipelineId: '1', rfqReference: 'RFQ-BAPCO-2026-041', receivedDate: '2026-03-10', responseDeadline: '2026-03-22', status: 'costing' as const, source: 'email', notes: 'Coriolis meter upgrade project' },
+    { pipelineId: '2', rfqReference: 'RFQ-ALBA-2026-015', receivedDate: '2026-03-15', responseDeadline: '2026-03-25', status: 'reviewing' as const, source: 'portal', notes: 'RTD sensor replacement' },
+    { pipelineId: '5', rfqReference: 'RFQ-EWA-2026-088', receivedDate: '2026-03-18', responseDeadline: '2026-03-28', status: 'received' as const, source: 'tender', notes: 'Metering infrastructure upgrade' },
+    { pipelineId: '3', rfqReference: 'RFQ-GPIC-2026-007', receivedDate: '2026-03-01', responseDeadline: '2026-03-10', status: 'quoted' as const, source: 'email', notes: 'Gasket procurement' },
+  ] as const;
+
+  let displayRfqs = $derived(rfqStore.entries.length > 0 ? rfqStore.entries : DEMO_RFQS);
 
   // ── Demo data (used when STDB is empty) ───────────────────────────────────
 
@@ -465,6 +483,16 @@
       Lost
       <span class="tab-count tab-count--coral">{lostRows.length}</span>
     </button>
+    <button
+      class="tab-pill"
+      class:tab-pill--active={activeTab === 'rfqs'}
+      onclick={() => (activeTab = 'rfqs')}
+    >
+      RFQs
+      {#if rfqDashboard.overdue.length > 0}
+        <span class="tab-badge tab-badge-overdue">{rfqDashboard.overdue.length}</span>
+      {/if}
+    </button>
   </nav>
 
   <!-- ── Summary strip ──────────────────────────────────────────────────── -->
@@ -665,6 +693,52 @@
         </table>
       </div>
     </div>
+  {/if}
+
+  <!-- ── RFQ Tab Content ─────────────────────────────────────────────────── -->
+  {#if activeTab === 'rfqs'}
+    <section class="rfq-section" use:enter={{ index: 3 }}>
+      <!-- RFQ Summary Strip -->
+      <div class="rfq-summary-strip">
+        <div class="rfq-stat card-inset">
+          <span class="rfq-stat-value">{rfqDashboard.total || displayRfqs.length}</span>
+          <span class="rfq-stat-label">Total RFQs</span>
+        </div>
+        <div class="rfq-stat card-inset">
+          <span class="rfq-stat-value rfq-overdue">{rfqDashboard.overdue.length}</span>
+          <span class="rfq-stat-label">Overdue</span>
+        </div>
+        <div class="rfq-stat card-inset">
+          <span class="rfq-stat-value rfq-due-soon">{rfqDashboard.dueSoon.length}</span>
+          <span class="rfq-stat-label">Due Soon</span>
+        </div>
+        <div class="rfq-stat card-inset">
+          <span class="rfq-stat-value">{rfqDashboard.winRate.toFixed(0)}%</span>
+          <span class="rfq-stat-label">Win Rate</span>
+        </div>
+      </div>
+
+      <!-- RFQ Cards -->
+      <div class="rfq-grid">
+        {#each displayRfqs as rfq (rfq.pipelineId)}
+          {@const isOverdue = new Date(rfq.responseDeadline) < new Date() && rfq.status !== 'quoted' && rfq.status !== 'won' && rfq.status !== 'lost'}
+          {@const isDueSoon = !isOverdue && (new Date(rfq.responseDeadline).getTime() - Date.now()) < 3 * 86_400_000 && rfq.status !== 'quoted' && rfq.status !== 'won' && rfq.status !== 'lost'}
+          <div class="rfq-card card" class:rfq-card-overdue={isOverdue} class:rfq-card-due-soon={isDueSoon}>
+            <div class="rfq-card-header">
+              <span class="rfq-ref mono">{rfq.rfqReference}</span>
+              <span class="rfq-status rfq-status-{rfq.status}">{rfq.status}</span>
+            </div>
+            <p class="rfq-notes">{rfq.notes}</p>
+            <div class="rfq-card-footer">
+              <span class="rfq-source">{rfq.source}</span>
+              <span class="rfq-deadline" class:rfq-overdue={isOverdue} class:rfq-due-soon={isDueSoon}>
+                Due: {rfq.responseDeadline}
+              </span>
+            </div>
+          </div>
+        {/each}
+      </div>
+    </section>
   {/if}
 
 </div>
@@ -1528,4 +1602,117 @@
   }
 
   .btn-generate:hover { opacity: 0.88; }
+
+  /* ═══════════════════════════════════════════ RFQ TAB ════════════════════ */
+
+  .rfq-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-16);
+  }
+
+  .rfq-summary-strip {
+    display: flex;
+    gap: var(--sp-10);
+    flex-wrap: wrap;
+  }
+
+  .rfq-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--sp-10) var(--sp-21);
+    border-radius: var(--radius-md);
+    min-width: 80px;
+  }
+
+  .rfq-stat-value {
+    font-family: var(--font-data);
+    font-size: var(--text-xl);
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .rfq-stat-label {
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-30);
+  }
+
+  .rfq-overdue { color: var(--coral); }
+  .rfq-due-soon { color: var(--gold); }
+
+  .rfq-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--sp-13);
+  }
+
+  .rfq-card {
+    padding: var(--sp-13);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+  }
+
+  .rfq-card-overdue { border-left: 3px solid var(--coral); }
+  .rfq-card-due-soon { border-left: 3px solid var(--gold); }
+
+  .rfq-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .rfq-ref {
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+
+  .rfq-status {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    text-transform: capitalize;
+  }
+
+  .rfq-status-received { background: var(--blue-soft); color: var(--blue); }
+  .rfq-status-reviewing { background: var(--gold-glow); color: var(--gold); }
+  .rfq-status-costing { background: var(--sage-soft); color: var(--sage); }
+  .rfq-status-quoted { background: var(--ink-06); color: var(--ink-40); }
+  .rfq-status-won { background: var(--sage-soft); color: var(--sage); }
+  .rfq-status-lost { background: var(--coral-soft); color: var(--coral); }
+  .rfq-status-expired { background: var(--ink-06); color: var(--ink-30); }
+
+  .rfq-notes {
+    font-size: var(--text-sm);
+    color: var(--ink-60);
+    margin: 0;
+  }
+
+  .rfq-card-footer {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--text-xs);
+    color: var(--ink-30);
+  }
+
+  .rfq-source { text-transform: capitalize; }
+
+  .tab-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 0 5px;
+    border-radius: var(--radius-pill);
+    margin-left: var(--sp-3);
+  }
+
+  .tab-badge-overdue {
+    background: var(--coral-soft);
+    color: var(--coral);
+  }
 </style>

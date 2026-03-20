@@ -55,6 +55,224 @@ function bhd(amount: number): bigint {
   return BigInt(Math.round(amount * 1000));
 }
 
+// ── Products, FX Rates & Stock ────────────────────────────────────────────────
+
+async function seedProductsAndFxRates(): Promise<void> {
+  const conn = getConnection();
+  if (!conn) return;
+
+  console.log('[seed] Seeding products, FX rates, and stock entries...');
+
+  // ── FX Rates ──────────────────────────────────────────────────────────────
+  // EUR/BHD = 0.41 (rate=41, scale=100)
+  // USD/BHD = 0.376 (rate=376, scale=1000)
+  // GBP/BHD = 0.48 (rate=48, scale=100)
+
+  conn.reducers.recordFxRate({
+    fromCurrency: 'EUR',
+    toCurrency: 'BHD',
+    rate: 41n,
+    rateScale: 100,
+    effectiveDate: ts(2026, 3, 1),
+    source: 'CBB reference rate',
+  });
+
+  conn.reducers.recordFxRate({
+    fromCurrency: 'USD',
+    toCurrency: 'BHD',
+    rate: 376n,
+    rateScale: 1000,
+    effectiveDate: ts(2026, 3, 1),
+    source: 'CBB reference rate',
+  });
+
+  conn.reducers.recordFxRate({
+    fromCurrency: 'GBP',
+    toCurrency: 'BHD',
+    rate: 48n,
+    rateScale: 100,
+    effectiveDate: ts(2026, 3, 1),
+    source: 'CBB reference rate',
+  });
+
+  await pause(200);
+
+  // ── Products ──────────────────────────────────────────────────────────────
+  // E+H Flow instruments
+  conn.reducers.upsertProduct({
+    id: 0n,
+    sku: 'CM442-3RT0/0',
+    name: 'Liquiline CM442',
+    category: 'E+H Flow',
+    supplierPartyId: undefined,
+    unitCostFils: 922_500n,      // 922.500 BHD
+    unitPriceFils: 1_107_000n,   // 1,107.000 BHD (20% markup)
+    minMarkupBps: 1200,          // 12%
+    hsCode: '9026.10',
+    description: 'Multi-parameter transmitter for process analytics',
+    isActive: true,
+  });
+
+  conn.reducers.upsertProduct({
+    id: 0n,
+    sku: '10W40-UA0A1AA0A',
+    name: 'Promag W 400',
+    category: 'E+H Flow',
+    supplierPartyId: undefined,
+    unitCostFils: 1_450_000n,
+    unitPriceFils: 1_740_000n,
+    minMarkupBps: 1200,
+    hsCode: '9026.10',
+    description: 'Electromagnetic flowmeter for water/wastewater',
+    isActive: true,
+  });
+
+  await pause(200);
+
+  // E+H Pressure
+  conn.reducers.upsertProduct({
+    id: 0n,
+    sku: 'PMP71-ABC1M',
+    name: 'Cerabar PMP71',
+    category: 'E+H Pressure',
+    supplierPartyId: undefined,
+    unitCostFils: 540_000n,
+    unitPriceFils: 648_000n,
+    minMarkupBps: 1200,
+    hsCode: '9026.20',
+    description: 'Process pressure transmitter with ceramic sensor',
+    isActive: true,
+  });
+
+  conn.reducers.upsertProduct({
+    id: 0n,
+    sku: 'PMD75-ABC1M',
+    name: 'Deltabar PMD75',
+    category: 'E+H Pressure',
+    supplierPartyId: undefined,
+    unitCostFils: 680_000n,
+    unitPriceFils: 816_000n,
+    minMarkupBps: 1200,
+    hsCode: '9026.20',
+    description: 'Differential pressure transmitter',
+    isActive: true,
+  });
+
+  await pause(200);
+
+  // E+H Level
+  conn.reducers.upsertProduct({
+    id: 0n,
+    sku: 'FMR62-AAA1M',
+    name: 'Micropilot FMR62',
+    category: 'E+H Level',
+    supplierPartyId: undefined,
+    unitCostFils: 890_000n,
+    unitPriceFils: 1_068_000n,
+    minMarkupBps: 1200,
+    hsCode: '9026.80',
+    description: 'Radar level transmitter for liquids',
+    isActive: true,
+  });
+
+  // E+H Temperature
+  conn.reducers.upsertProduct({
+    id: 0n,
+    sku: 'TMT162-A1BA2',
+    name: 'iTHERM TMT162',
+    category: 'E+H Temperature',
+    supplierPartyId: undefined,
+    unitCostFils: 320_000n,
+    unitPriceFils: 384_000n,
+    minMarkupBps: 1200,
+    hsCode: '9025.19',
+    description: 'Temperature transmitter with HART protocol',
+    isActive: true,
+  });
+
+  await pause(200);
+
+  // E+H Analysis
+  conn.reducers.upsertProduct({
+    id: 0n,
+    sku: 'CAS40D-AAC1M',
+    name: 'Memosens CAS40D',
+    category: 'E+H Analysis',
+    supplierPartyId: undefined,
+    unitCostFils: 450_000n,
+    unitPriceFils: 562_500n,
+    minMarkupBps: 1500,
+    hsCode: '9027.80',
+    description: 'Digital dissolved oxygen sensor',
+    isActive: true,
+  });
+
+  // Servomex
+  conn.reducers.upsertProduct({
+    id: 0n,
+    sku: 'SRV-4900C',
+    name: 'Servomex 4900C Multigas',
+    category: 'Servomex',
+    supplierPartyId: undefined,
+    unitCostFils: 3_200_000n,
+    unitPriceFils: 4_160_000n,
+    minMarkupBps: 2000,
+    hsCode: '9027.10',
+    description: 'Continuous multi-gas analyser',
+    isActive: true,
+  });
+
+  await pause(200);
+
+  // GIC India Chemicals
+  conn.reducers.upsertProduct({
+    id: 0n,
+    sku: 'GIC-CHM-500',
+    name: 'Industrial Cleaning Chemical 500L',
+    category: 'Chemicals',
+    supplierPartyId: undefined,
+    unitCostFils: 180_000n,
+    unitPriceFils: 270_000n,
+    minMarkupBps: 3500,
+    hsCode: '3824.99',
+    description: 'Industrial grade cleaning chemical, 500L drum',
+    isActive: true,
+  });
+
+  // Iskraemeco meters
+  conn.reducers.upsertProduct({
+    id: 0n,
+    sku: 'ISK-ME382',
+    name: 'Iskra ME382',
+    category: 'Iskraemeco',
+    supplierPartyId: undefined,
+    unitCostFils: 85_000n,
+    unitPriceFils: 106_250n,
+    minMarkupBps: 1500,
+    hsCode: '9028.30',
+    description: 'Three-phase polyphase energy meter',
+    isActive: true,
+  });
+
+  // Landis+Gyr
+  conn.reducers.upsertProduct({
+    id: 0n,
+    sku: 'LG-E450',
+    name: 'Landis+Gyr E450',
+    category: 'Landis+Gyr',
+    supplierPartyId: undefined,
+    unitCostFils: 120_000n,
+    unitPriceFils: 138_000n,
+    minMarkupBps: 1000,
+    hsCode: '9028.30',
+    description: 'Smart residential electricity meter',
+    isActive: true,
+  });
+
+  await pause(200);
+  console.log('[seed] Products and FX rates seeded.');
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export async function seedDatabase(): Promise<void> {
@@ -2271,6 +2489,8 @@ export async function seedDatabase(): Promise<void> {
 
   console.log('[seed] Line items done (15)');
 
+  await seedProductsAndFxRates();
+
   console.log('[seed] ==============================');
   console.log('[seed] AsymmFlow comprehensive seed complete!');
   console.log('[seed] PH Trading WLL, Bahrain — canonical_seed.xlsx data:');
@@ -2281,6 +2501,8 @@ export async function seedDatabase(): Promise<void> {
   console.log('[seed]   30 money events (15 invoices, 10 payments, 3 supplier invoices, 2 supplier payments)');
   console.log('[seed]   20 activity logs');
   console.log('[seed]   15 line items (E+H instruments: Coriolis, EM flowmeters, pressure, level, analyzers)');
+  console.log('[seed]   11 products  (E+H, Servomex, GIC, Iskraemeco, Landis+Gyr)');
+  console.log('[seed]    3 FX rates  (EUR/BHD, USD/BHD, GBP/BHD)');
   console.log('[seed] ==============================');
   console.log('[seed] Key overdue invoices to chase:');
   console.log('[seed]   PH25/130 Al Ezzel Engie — 48,472.60 BHD overdue since Dec 2025');

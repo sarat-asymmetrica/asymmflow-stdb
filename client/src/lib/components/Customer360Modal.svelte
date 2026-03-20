@@ -1,6 +1,7 @@
 <script lang="ts">
   import { parties, contacts, moneyEvents, pipelines, orders } from '../db';
   import { formatBHD, formatDate, gradeColor, gradeBackground } from '../format';
+  import { loadNoteStore, getNotesForEntity, type EntityNote } from '../business/entityNotes';
 
   // ── Props ─────────────────────────────────────────────────────────────────
 
@@ -12,13 +13,14 @@
 
   // ── Active tab ────────────────────────────────────────────────────────────
 
-  let activeTab = $state<'invoices' | 'payments' | 'pipeline' | 'contacts'>('invoices');
+  let activeTab = $state<'invoices' | 'payments' | 'pipeline' | 'contacts' | 'notes'>('invoices');
 
   const tabs = [
     { id: 'invoices',  label: 'Invoices'  },
     { id: 'payments',  label: 'Payments'  },
     { id: 'pipeline',  label: 'Pipeline'  },
     { id: 'contacts',  label: 'Contacts'  },
+    { id: 'notes',     label: 'Notes'     },
   ] as const;
 
   // ── Derived data ──────────────────────────────────────────────────────────
@@ -50,6 +52,12 @@
 
   let partyPipelines = $derived($pipelines.filter(p => p.partyId === partyId));
   let partyContacts  = $derived($contacts.filter(c => c.partyId === partyId));
+
+  let noteStore = $state(loadNoteStore());
+  let partyNotes = $derived.by(() => {
+    if (!partyId) return [];
+    return getNotesForEntity(noteStore, party?.isSupplier ? 'supplier' : 'customer', String(partyId));
+  });
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -174,6 +182,29 @@
         </div>
       </div>
 
+      {#if party?.isSupplier && (party.bankIban || party.bankSwift)}
+        <div class="bank-details">
+          {#if party.bankIban}
+            <div class="detail-row">
+              <span class="detail-label">IBAN</span>
+              <span class="detail-value mono">{party.bankIban}</span>
+            </div>
+          {/if}
+          {#if party.bankSwift}
+            <div class="detail-row">
+              <span class="detail-label">SWIFT</span>
+              <span class="detail-value mono">{party.bankSwift}</span>
+            </div>
+          {/if}
+          {#if party.bankAccountName}
+            <div class="detail-row">
+              <span class="detail-label">Account</span>
+              <span class="detail-value">{party.bankAccountName}</span>
+            </div>
+          {/if}
+        </div>
+      {/if}
+
       <!-- ── Tabs ────────────────────────────────────────────────────────── -->
       <div class="tabs-row">
         {#each tabs as tab}
@@ -191,6 +222,8 @@
               <span class="tab-count">{partyPipelines.length}</span>
             {:else if tab.id === 'contacts' && partyContacts.length > 0}
               <span class="tab-count">{partyContacts.length}</span>
+            {:else if tab.id === 'notes' && partyNotes.length > 0}
+              <span class="tab-count">{partyNotes.length}</span>
             {/if}
           </button>
         {/each}
@@ -374,6 +407,33 @@
               {/each}
             </div>
           {/if}
+        {/if}
+
+        <!-- Notes -->
+        {#if activeTab === 'notes'}
+          <div class="notes-section">
+            {#if partyNotes.length === 0}
+              <div class="empty-notes">
+                <p>No notes yet for this {party?.isSupplier ? 'supplier' : 'customer'}.</p>
+                <p class="empty-hint">Use the AI chat to add notes: "Remember that {party?.name ?? 'this customer'} prefers..."</p>
+              </div>
+            {:else}
+              {#each partyNotes as note (note.id)}
+                <div class="note-card">
+                  <div class="note-header">
+                    <span class="note-type-badge">{note.noteType}</span>
+                    <span class="note-date">{new Date(note.createdAt).toLocaleDateString('en-BH')}</span>
+                    {#if note.pinned}
+                      <span class="note-pin">pinned</span>
+                    {/if}
+                  </div>
+                  <h4 class="note-title">{note.title}</h4>
+                  <p class="note-content">{note.content}</p>
+                  <span class="note-author">by {note.createdBy}</span>
+                </div>
+              {/each}
+            {/if}
+          </div>
         {/if}
 
       </div>
@@ -888,5 +948,114 @@
     .modal-title {
       font-size: var(--text-lg);
     }
+  }
+
+  /* ── Bank details ──────────────────────────────────────────────────── */
+  .bank-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-5);
+    padding: var(--sp-10);
+    background: var(--ink-03);
+    border-radius: var(--radius-sm);
+    margin-top: var(--sp-8);
+  }
+
+  .detail-row {
+    display: flex;
+    gap: var(--sp-13);
+    align-items: baseline;
+  }
+
+  .detail-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-30);
+    min-width: 50px;
+  }
+
+  .detail-value {
+    font-size: var(--text-sm);
+    color: var(--ink);
+  }
+
+  /* ── Notes ─────────────────────────────────────────────────────────── */
+  .notes-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-10);
+  }
+
+  .empty-notes {
+    text-align: center;
+    padding: var(--sp-21);
+    color: var(--ink-30);
+  }
+
+  .empty-hint {
+    font-size: var(--text-xs);
+    font-style: italic;
+    margin-top: var(--sp-5);
+  }
+
+  .note-card {
+    padding: var(--sp-13);
+    background: var(--ink-03);
+    border-radius: var(--radius-sm);
+  }
+
+  .note-header {
+    display: flex;
+    gap: var(--sp-8);
+    align-items: center;
+    margin-bottom: var(--sp-5);
+  }
+
+  .note-type-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: var(--radius-pill);
+    background: var(--gold-glow);
+    color: var(--gold);
+    text-transform: capitalize;
+  }
+
+  .note-date {
+    font-size: var(--text-xs);
+    color: var(--ink-30);
+  }
+
+  .note-pin {
+    font-size: 10px;
+    color: var(--coral);
+    font-weight: 600;
+  }
+
+  .note-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    margin: 0 0 var(--sp-3);
+  }
+
+  .note-content {
+    font-size: var(--text-sm);
+    color: var(--ink-60);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .note-author {
+    font-size: 10px;
+    color: var(--ink-30);
+    margin-top: var(--sp-5);
+    display: block;
+  }
+
+  .mono {
+    font-family: var(--font-data);
+    letter-spacing: 0.02em;
   }
 </style>

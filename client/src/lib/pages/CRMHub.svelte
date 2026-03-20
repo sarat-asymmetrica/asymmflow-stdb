@@ -227,6 +227,10 @@
       phone: '+41 61 715 7575',
       paymentTerms: 'Net 60',
       notes: 'Primary OEM. Basel office. Quarterly pricing review.',
+      bankIban: 'CH93 0076 2011 6238 5295 7',
+      bankSwift: 'UBSWCHZH80A',
+      bankAccountName: 'Endress+Hauser AG',
+      hasBankDetails: true,
     },
     {
       id: 102n,
@@ -241,6 +245,10 @@
       phone: '+44 1onal 732800',
       paymentTerms: 'Net 45',
       notes: 'UK supplier. 25% margin products. Annual contract renewal.',
+      bankIban: 'GB29 NWBK 6016 1331 9268 19',
+      bankSwift: 'NWBKGB2L',
+      bankAccountName: 'Servomex Group Ltd',
+      hasBankDetails: true,
     },
     {
       id: 103n,
@@ -255,6 +263,10 @@
       phone: '+91 79 2658 3124',
       paymentTerms: 'Advance',
       notes: 'High margin (35-50%). Advance payment only.',
+      bankIban: '',
+      bankSwift: '',
+      bankAccountName: '',
+      hasBankDetails: false,
     },
     {
       id: 104n,
@@ -269,6 +281,10 @@
       phone: '+386 4 206 1000',
       paymentTerms: 'Net 90',
       notes: 'Slovenian meter manufacturer. Lead time 8-12 weeks.',
+      bankIban: '',
+      bankSwift: '',
+      bankAccountName: '',
+      hasBankDetails: false,
     },
     {
       id: 105n,
@@ -283,6 +299,10 @@
       phone: '+41 41 935 6000',
       paymentTerms: 'Net 60',
       notes: 'Swiss HQ. Metering projects with EWA.',
+      bankIban: '',
+      bankSwift: '',
+      bankAccountName: '',
+      hasBankDetails: false,
     },
   ];
 
@@ -359,6 +379,10 @@
         phone: primaryContact?.phone ?? '',
         paymentTerms: `Net ${Number(p.paymentTermsDays)}`,
         notes: p.notes ?? '',
+        bankIban: p.bankIban ?? '',
+        bankSwift: p.bankSwift ?? '',
+        bankAccountName: p.bankAccountName ?? '',
+        hasBankDetails: !!(p.bankIban || p.bankSwift),
       };
     });
   });
@@ -696,6 +720,24 @@
                   {/if}
                 </div>
               </div>
+
+              <!-- Bank details -->
+              {#if s.hasBankDetails}
+                <div class="supplier-bank-strip">
+                  {#if s.bankIban}
+                    <div class="bank-field">
+                      <span class="bank-field-label">IBAN</span>
+                      <span class="bank-field-value">{s.bankIban}</span>
+                    </div>
+                  {/if}
+                  {#if s.bankSwift}
+                    <div class="bank-field">
+                      <span class="bank-field-label">SWIFT</span>
+                      <span class="bank-field-value">{s.bankSwift}</span>
+                    </div>
+                  {/if}
+                </div>
+              {/if}
 
               <!-- Footer with notes -->
               {#if s.notes}
@@ -1199,5 +1241,38 @@
     color: var(--ink-30);
     text-align: center;
     margin: 0;
+  }
+
+  /* ── Supplier bank details ── */
+  .supplier-bank-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: var(--sp-8) var(--sp-10);
+    background: var(--ink-03);
+    border-radius: var(--radius-sm);
+    border-left: 2px solid var(--gold-soft);
+  }
+
+  .bank-field {
+    display: flex;
+    gap: var(--sp-8);
+    align-items: baseline;
+  }
+
+  .bank-field-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-30);
+    min-width: 40px;
+  }
+
+  .bank-field-value {
+    font-family: var(--font-data);
+    font-size: var(--text-xs);
+    color: var(--ink-60);
+    letter-spacing: 0.02em;
   }
 </style>
