@@ -15,6 +15,7 @@
   import { computeDashboardMetrics } from '../business/dashboardMetrics';
   import { computeCashForecast } from '../business/cashPosition';
   import { computePartyReceivableSnapshots } from '../business/arAging';
+  import { evaluateAlerts, sortAlerts, countBySeverity } from '../business/alertSystem';
   import { formatBHD, formatRelative } from '../format';
   import { activeView, type View } from '../stores';
   import KPICard from '../components/KPICard.svelte';
@@ -399,6 +400,29 @@
   let displayFollowUps = $derived(
     followUpCards.length > 0 ? followUpCards : DEMO_FOLLOWUPS as unknown as typeof followUpCards
   );
+
+  let businessAlerts = $derived.by(() => {
+    const alerts = evaluateAlerts({
+      parties: $parties as never,
+      moneyEvents: $moneyEvents as never,
+      pipelines: $pipelines as never,
+      nowMicros: nowMicros,
+    });
+    return sortAlerts(alerts);
+  });
+
+  let alertCounts = $derived(countBySeverity(businessAlerts));
+
+  let displayAlerts = $derived(
+    businessAlerts.length > 0
+      ? businessAlerts.slice(0, 8)
+      : [
+          { id: 'demo-1', severity: 'critical', category: 'finance', title: 'Credit Limit Breach', message: 'EWA outstanding exceeds credit limit by BHD 5,000', actionLabel: 'Review', createdAt: '' },
+          { id: 'demo-2', severity: 'warning', category: 'finance', title: 'Overdue > 60 days', message: 'BAPCO has 2 invoices overdue by 67 days', actionLabel: 'Chase', createdAt: '' },
+          { id: 'demo-3', severity: 'warning', category: 'crm', title: 'Stale Pipeline', message: 'ALBA expansion follow-up overdue by 18 days', actionLabel: 'Follow Up', createdAt: '' },
+          { id: 'demo-4', severity: 'info', category: 'finance', title: 'Payments This Week', message: '3 payments received totalling BHD 12,500', createdAt: '' },
+        ] as typeof businessAlerts
+  );
 </script>
 
 <div class="dashboard">
@@ -677,6 +701,43 @@
         {/each}
       </div>
     {/if}
+  </section>
+
+  <!-- Business Alerts -->
+  <section class="alerts-section" use:enter={{ index: 7 }}>
+    <div class="section-header">
+      <h2 class="section-title">Alerts</h2>
+      <div class="alert-count-chips">
+        {#if alertCounts.critical > 0}
+          <span class="alert-chip chip-critical">{alertCounts.critical} critical</span>
+        {/if}
+        {#if alertCounts.warning > 0}
+          <span class="alert-chip chip-warning">{alertCounts.warning} warning</span>
+        {/if}
+        {#if alertCounts.info > 0}
+          <span class="alert-chip chip-info">{alertCounts.info} info</span>
+        {/if}
+      </div>
+    </div>
+
+    <div class="alert-list">
+      {#each displayAlerts as alert (alert.id)}
+        <div class="alert-item" class:alert-critical={alert.severity === 'critical'} class:alert-warning={alert.severity === 'warning'} class:alert-info={alert.severity === 'info'}>
+          <span class="alert-severity-dot"
+            class:dot-critical={alert.severity === 'critical'}
+            class:dot-warning={alert.severity === 'warning'}
+            class:dot-info={alert.severity === 'info'}
+          ></span>
+          <div class="alert-content">
+            <span class="alert-title">{alert.title}</span>
+            <span class="alert-message">{alert.message}</span>
+          </div>
+          {#if alert.actionLabel}
+            <span class="alert-action">{alert.actionLabel}</span>
+          {/if}
+        </div>
+      {/each}
+    </div>
   </section>
 
 </div>
@@ -1362,5 +1423,104 @@
     font-family: var(--font-ui);
     font-size: var(--text-sm);
     color: var(--ink-30);
+  }
+
+  /* ── Business Alerts ──────────────────────────────────────────────────── */
+
+  .alerts-section {
+    grid-column: 1 / -1;
+  }
+
+  .alert-count-chips {
+    display: flex;
+    gap: var(--sp-5);
+  }
+
+  .alert-chip {
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .chip-critical { background: var(--coral-soft); color: var(--coral); }
+  .chip-warning { background: var(--gold-glow); color: var(--gold); }
+  .chip-info { background: var(--sage-soft); color: var(--sage); }
+
+  .alert-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-5);
+  }
+
+  .alert-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-10);
+    padding: var(--sp-10) var(--sp-13);
+    border-radius: var(--radius-sm);
+    background: var(--paper-card);
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+
+  .alert-item:hover {
+    transform: translateX(2px);
+  }
+
+  .alert-critical { border-left: 3px solid var(--coral); }
+  .alert-warning { border-left: 3px solid var(--gold); }
+  .alert-info { border-left: 3px solid var(--sage); }
+
+  .alert-severity-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .dot-critical { background: var(--coral); }
+  .dot-warning { background: var(--gold); }
+  .dot-info { background: var(--sage); }
+
+  .alert-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .alert-title {
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .alert-message {
+    font-size: var(--text-xs);
+    color: var(--ink-40);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .alert-action {
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .alert-action:hover {
+    color: var(--ink);
   }
 </style>

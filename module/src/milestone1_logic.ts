@@ -18,6 +18,9 @@ type PartyLike = {
   productTypes: string;
   annualGoalFils: bigint;
   notes: string;
+  bankIban: string;
+  bankSwift: string;
+  bankAccountName: string;
   createdAt: TimestampLike;
   updatedAt: TimestampLike;
 };
@@ -393,6 +396,9 @@ export function upsertPartyImpl(ctx: GenericCtx, args: {
   productTypes: string;
   annualGoalFils: bigint;
   notes: string;
+  bankIban: string;
+  bankSwift: string;
+  bankAccountName: string;
 }): void {
   let terms = args.paymentTermsDays;
   if (args.isCustomer && terms === 0n) {
@@ -412,6 +418,9 @@ export function upsertPartyImpl(ctx: GenericCtx, args: {
       productTypes: args.productTypes,
       annualGoalFils: args.annualGoalFils,
       notes: args.notes,
+      bankIban: args.bankIban ?? '',
+      bankSwift: args.bankSwift ?? '',
+      bankAccountName: args.bankAccountName ?? '',
       createdAt: ctx.timestamp,
       updatedAt: ctx.timestamp,
     });
@@ -1153,6 +1162,7 @@ export function recordMoneyEventImpl(ctx: GenericCtx, args: {
   kind: MoneyEventKindLike;
   subtotalFils: bigint;
   reference: string;
+  sourceDate?: TimestampLike;
   dueDate?: TimestampLike;
 }): void {
   const party = ctx.db.party.id.find(args.partyId);
@@ -1238,6 +1248,7 @@ export function recordMoneyEventImpl(ctx: GenericCtx, args: {
       vatFils,
       totalFils: subtotalFils + vatFils,
       reference: args.reference,
+      sourceDate: args.sourceDate,
       dueDate: args.dueDate,
       paidAt: undefined,
       createdBy: ctx.sender,
@@ -1310,6 +1321,7 @@ export function recordMoneyEventImpl(ctx: GenericCtx, args: {
       vatFils: 0n,
       totalFils: args.subtotalFils,
       reference: args.reference,
+      sourceDate: args.sourceDate,
       dueDate: undefined,
       paidAt: ctx.timestamp,
       createdBy: ctx.sender,
@@ -1344,6 +1356,7 @@ export function recordMoneyEventImpl(ctx: GenericCtx, args: {
     vatFils: args.kind.tag === 'SupplierInvoice' ? (args.subtotalFils * 10n) / 100n : 0n,
     totalFils: args.kind.tag === 'SupplierInvoice' ? args.subtotalFils + ((args.subtotalFils * 10n) / 100n) : args.subtotalFils,
     reference: args.reference,
+    sourceDate: args.sourceDate,
     dueDate: args.kind.tag === 'SupplierInvoice' ? args.dueDate : undefined,
     paidAt: args.kind.tag === 'SupplierPayment' ? ctx.timestamp : undefined,
     createdBy: ctx.sender,

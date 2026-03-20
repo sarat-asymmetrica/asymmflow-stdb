@@ -340,6 +340,42 @@ const SKILLS: SkillDefinition[] = [
     ],
   },
 
+  {
+    name: 'generate_grn_pdf',
+    displayName: 'Generate GRN PDF',
+    description:
+      'Generate a Goods Received Note PDF documenting items received from a supplier against a purchase order.',
+    category: 'data',
+    approval: 'explicit',
+    requiredRoles: ['Admin', 'Manager', 'Operations'],
+    parameters: [
+      {
+        name: 'grnId',
+        type: 'number',
+        required: true,
+        description: 'Numeric ID of the GRN to generate.',
+      },
+    ],
+  },
+
+  {
+    name: 'check_shipment_status',
+    displayName: 'Shipment Status',
+    description:
+      'Check per-line-item shipment progress for an order, showing quantities ordered, shipped, and remaining.',
+    category: 'data',
+    approval: 'auto',
+    requiredRoles: ['Admin', 'Manager', 'Sales', 'Operations'],
+    parameters: [
+      {
+        name: 'orderId',
+        type: 'number',
+        required: true,
+        description: 'Numeric ID of the order to check.',
+      },
+    ],
+  },
+
   // ── FILE SKILLS ──────────────────────────────────────────────────────────────
 
   {
@@ -627,6 +663,17 @@ const SKILLS: SkillDefinition[] = [
   },
 
   // ── INTELLIGENCE SKILLS ───────────────────────────────────────────────────────
+
+  {
+    name: 'evaluate_risk_portfolio',
+    displayName: 'Risk Portfolio',
+    description:
+      'Evaluate customer risk across the entire portfolio using a 5-factor scoring model: payment behavior, credit utilization, overdue severity, grade, and concentration risk.',
+    category: 'intelligence',
+    approval: 'auto',
+    requiredRoles: ['Admin', 'Manager', 'Accountant'],
+    parameters: [],
+  },
 
   {
     name: 'pricing_advisor',

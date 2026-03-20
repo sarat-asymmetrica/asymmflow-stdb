@@ -49,6 +49,8 @@ import {
   generateSalesReport, generateCollectionsReport, generatePayablesReport,
   formatSalesReport, formatCollectionsReport, formatPayablesReport,
 } from '../business/financialReports';
+import { evaluatePortfolioRisk } from '../business/riskScoring';
+import { computeOrderShipmentSummary, formatShipmentProgress } from '../business/shipmentTracking';
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -1132,6 +1134,111 @@ async function handleEvaluateAlerts(): Promise<SkillResult> {
   };
 }
 
+// ── Risk portfolio handler ────────────────────────────────────────────────────
+
+async function handleEvaluateRiskPortfolio(): Promise<SkillResult> {
+  const result = evaluatePortfolioRisk(
+    get(parties) as never,
+    get(moneyEvents) as never,
+    BigInt(Date.now()) * 1000n,
+  );
+
+  const summary =
+    `Portfolio risk: ${result.totalCustomers} customers, ` +
+    `${result.byTier.critical} critical, ${result.byTier.high} high, ` +
+    `${result.byTier.medium} medium, ${result.byTier.low} low. ` +
+    `Total exposure BHD ${formatBHD(result.totalExposureFils)}, ` +
+    `high-risk exposure BHD ${formatBHD(result.highRiskExposureFils)}.`;
+
+  return {
+    success: true,
+    summary,
+    data: {
+      totalCustomers: result.totalCustomers,
+      byTier: result.byTier,
+      totalExposureFils: String(result.totalExposureFils),
+      highRiskExposureFils: String(result.highRiskExposureFils),
+      averageRiskScore: result.averageRiskScore,
+      topRisks: result.topRisks.map(r => ({
+        name: r.name,
+        grade: r.grade,
+        riskScore: r.riskScore,
+        tier: r.tier,
+        outstandingFils: String(r.outstandingFils),
+        recommendation: r.recommendation,
+      })),
+    },
+  };
+}
+
+// ── Shipment status handler ──────────────────────────────────────────────────
+
+async function handleCheckShipmentStatus(params: Record<string, unknown>): Promise<SkillResult> {
+  if (params.orderId == null) {
+    return { success: false, summary: 'orderId is required.', error: 'missing_param' };
+  }
+
+  const numericId = Number(params.orderId);
+  if (!Number.isInteger(numericId) || numericId <= 0) {
+    return { success: false, summary: 'orderId must be a positive integer.', error: 'invalid_param' };
+  }
+
+  const orderId = BigInt(numericId);
+  const order = get(orders).find(o => o.id === orderId);
+  if (!order) {
+    return { success: false, summary: `Order #${orderId} not found.`, error: 'not_found' };
+  }
+
+  const orderLineItems = get(lineItems).filter(
+    li => li.parentType === 'order' && li.parentId === orderId
+  );
+
+  const summary = computeOrderShipmentSummary(
+    orderId,
+    orderLineItems as never,
+    get(deliveryNotes) as never,
+    get(deliveryNoteItems) as never,
+  );
+
+  const text = formatShipmentProgress(summary);
+  const party = get(parties).find(p => p.id === order.partyId);
+
+  return {
+    success: true,
+    summary:
+      `Order #${orderId}${party ? ` for ${party.name}` : ''}: ` +
+      `${summary.overallShipmentPct}% shipped (${summary.totalShipped}/${summary.totalOrdered} items), ` +
+      `${summary.deliveryNoteCount} delivery note${summary.deliveryNoteCount !== 1 ? 's' : ''}.`,
+    data: {
+      orderId: String(orderId),
+      overallShipmentPct: summary.overallShipmentPct,
+      totalOrdered: summary.totalOrdered,
+      totalShipped: summary.totalShipped,
+      totalRemaining: summary.totalRemaining,
+      fullyShipped: summary.fullyShipped,
+      deliveryNoteCount: summary.deliveryNoteCount,
+      lineItems: summary.lineItems.map(li => ({
+        description: li.description,
+        ordered: li.quantityOrdered,
+        shipped: li.quantityShipped,
+        remaining: li.quantityRemaining,
+        pct: li.shipmentPct,
+      })),
+      report: text,
+    },
+  };
+}
+
+// ── GRN PDF handler ──────────────────────────────────────────────────────────
+
+async function handleGenerateGrnPdf(params: Record<string, unknown>): Promise<SkillResult> {
+  return {
+    success: false,
+    summary: 'GRN PDF generation via AI chat is not yet wired to the live data store. Use the Operations Hub GRN tab to generate GRN PDFs.',
+    error: 'not_implemented',
+  };
+}
+
 // ── Public entry point ────────────────────────────────────────────────────────
 
 /**
@@ -1291,6 +1398,15 @@ export async function executeSkill(
 
       case 'evaluate_alerts':
         return await handleEvaluateAlerts();
+
+      case 'evaluate_risk_portfolio':
+        return await handleEvaluateRiskPortfolio();
+
+      case 'check_shipment_status':
+        return await handleCheckShipmentStatus(params);
+
+      case 'generate_grn_pdf':
+        return await handleGenerateGrnPdf(params);
 
       default:
         return {
