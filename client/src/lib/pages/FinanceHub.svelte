@@ -6,12 +6,14 @@
   import { currentRole, toast } from '../stores';
   import { formatBHD, formatDate } from '../format';
   import { Timestamp } from 'spacetimedb';
+  import { get } from 'svelte/store';
   import CreateInvoiceModal from '../components/CreateInvoiceModal.svelte';
   import RecordPaymentModal from '../components/RecordPaymentModal.svelte';
   import { generateInvoicePdf } from '../documents/invoiceGenerator';
   import { generateStatementPdf } from '../documents/statementGenerator';
   import { computeARAgingRows, computeARAgingTotals } from '../business/arAging';
   import { buildPaymentCandidates, parseBankStatementCsv, suggestMatches } from '../business/bankReconciliation';
+  import { executeTallyImport, prepareTallyImportPreview, type TallyImportExecutionResult, type TallyImportMode, type TallyImportPreview } from '../business/tallyImport';
   import { enter } from '$lib/motion/asymm-motion';
   import { executeSkill } from '../skills/executor';
 
@@ -30,11 +32,18 @@
   let bankActionInFlight = $state(false);
   let bankImportInput: HTMLInputElement | null = null;
   let exportingAging = $state(false);
+  let tallyImportMode = $state<TallyImportMode>('customer_invoices');
+  let tallyImportInput: HTMLInputElement | null = null;
+  let tallyParsing = $state(false);
+  let tallyImporting = $state(false);
+  let tallyPreview = $state<TallyImportPreview | null>(null);
+  let tallyLastResult = $state<TallyImportExecutionResult | null>(null);
 
   const tabs = [
     { id: 'invoices', label: 'Invoices' },
     { id: 'payments', label: 'Payments' },
     { id: 'bank', label: 'Bank Recon' },
+    { id: 'tally', label: 'Tally Import' },
     { id: 'aging', label: 'AR Aging' },
   ];
 
@@ -396,6 +405,86 @@
   }
 
   // ── Aging bar helpers ─────────────────────────────────
+
+  function tallyModeLabel(mode: TallyImportMode): string {
+    if (mode === 'customer_invoices') return 'Customer Invoices';
+    if (mode === 'supplier_invoices') return 'Supplier Invoices';
+    return 'Supplier Payments';
+  }
+
+  function resetTallyInput() {
+    if (tallyImportInput) tallyImportInput.value = '';
+  }
+
+  function triggerTallyImportPicker() {
+    tallyImportInput?.click();
+  }
+
+  async function handleTallyFileSelected(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    tallyParsing = true;
+    tallyLastResult = null;
+    try {
+      const workbookData = await file.arrayBuffer();
+      tallyPreview = prepareTallyImportPreview(
+        workbookData,
+        tallyImportMode,
+        $parties,
+        $moneyEvents,
+        file.name,
+      );
+      toast.success(
+        `Preview ready for ${tallyModeLabel(tallyImportMode)}: ` +
+        `${tallyPreview.readyRows} ready, ${tallyPreview.duplicateRows} duplicates, ${tallyPreview.invalidRows} invalid.`
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      tallyPreview = null;
+      toast.danger(`Could not parse Tally workbook: ${message}`);
+    } finally {
+      tallyParsing = false;
+      resetTallyInput();
+    }
+  }
+
+  async function handleExecuteTallyImport() {
+    const conn = getConnection();
+    if (!conn) {
+      toast.danger('Not connected to the database.');
+      return;
+    }
+
+    if (!tallyPreview) {
+      toast.warning('Choose a Tally workbook first.');
+      return;
+    }
+
+    tallyImporting = true;
+    try {
+      const result = await executeTallyImport(
+        tallyPreview,
+        conn,
+        () => get(parties),
+        () => get(moneyEvents),
+      );
+
+      tallyLastResult = result;
+      if (result.errors > 0) {
+        toast.warning(
+          `Tally import finished: ${result.imported} imported, ${result.duplicates} duplicates, ${result.errors} errors.`
+        );
+      } else {
+        toast.success(
+          `Tally import finished: ${result.imported} imported, ${result.duplicates} duplicates, ${result.createdParties} new parties created.`
+        );
+      }
+    } finally {
+      tallyImporting = false;
+    }
+  }
 
   function agingBarSegments(row: typeof DEMO_AGING[0]) {
     const total = Number(row.total) || 1;
@@ -1019,6 +1108,164 @@
         {/if}
       </section>
 
+    {:else if activeTab === 'tally'}
+      <section class="tally-shell">
+        <div class="tally-toolbar card">
+          <div>
+            <h3 class="bank-panel-title">Tally Workbook Import</h3>
+            <p class="bank-panel-subtitle">
+              Preview first, then import customer invoices, supplier invoices, or supplier payments from Tally Excel exports.
+            </p>
+          </div>
+
+          <div class="filter-bar tally-toolbar-actions">
+            <select
+              class="select-neu"
+              bind:value={tallyImportMode}
+              onchange={() => {
+                tallyPreview = null;
+                tallyLastResult = null;
+              }}
+            >
+              <option value="customer_invoices">Customer Invoices</option>
+              <option value="supplier_invoices">Supplier Invoices</option>
+              <option value="supplier_payments">Supplier Payments</option>
+            </select>
+            <button class="btn btn-sm" onclick={triggerTallyImportPicker} disabled={tallyParsing}>
+              {tallyParsing ? 'Reading...' : 'Choose Workbook'}
+            </button>
+            <button
+              class="btn btn-gold btn-sm"
+              onclick={handleExecuteTallyImport}
+              disabled={tallyImporting || !tallyPreview || tallyPreview.readyRows === 0}
+            >
+              {tallyImporting ? 'Importing...' : 'Import Ready Rows'}
+            </button>
+          </div>
+        </div>
+
+        {#if tallyPreview}
+          <div class="bank-summary-grid">
+            <div class="bank-summary-card card-subtle">
+              <span class="bank-summary-label">Workbook</span>
+              <span class="bank-summary-value tally-summary-text">{tallyPreview.fileName}</span>
+            </div>
+            <div class="bank-summary-card card-subtle">
+              <span class="bank-summary-label">Ready</span>
+              <span class="bank-summary-value">{tallyPreview.readyRows}</span>
+            </div>
+            <div class="bank-summary-card card-subtle">
+              <span class="bank-summary-label">Duplicates</span>
+              <span class="bank-summary-value">{tallyPreview.duplicateRows}</span>
+            </div>
+            <div class="bank-summary-card card-subtle">
+              <span class="bank-summary-label">Invalid</span>
+              <span class="bank-summary-value">{tallyPreview.invalidRows}</span>
+            </div>
+          </div>
+
+          <div class="table-shell card">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Row</th>
+                  <th>Party</th>
+                  <th>Reference</th>
+                  <th>Date</th>
+                  <th class="num-col">Amount</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each tallyPreview.rows as row}
+                  <tr class="table-row">
+                    <td class="cell-sm">{row.rowNumber}</td>
+                    <td>
+                      <div class="bank-ledger-cell">
+                        <span class="cell-name">{row.partyName || '—'}</span>
+                        <span class="cell-ref">
+                          {#if row.matchedPartyName}
+                            Matched to {row.matchedPartyName}
+                          {:else if row.willCreateParty}
+                            New party will be created
+                          {:else}
+                            Review required
+                          {/if}
+                        </span>
+                      </div>
+                    </td>
+                    <td class="cell-ref">{row.reference}</td>
+                    <td class="cell-date">{row.transactionDate.toLocaleDateString('en-GB')}</td>
+                    <td class="num-col">
+                      <span class="cell-amount">{formatBHD(row.totalFils)}</span>
+                    </td>
+                    <td>
+                      <span
+                        class="badge badge-{row.status === 'ready' ? 'sage' : row.status === 'duplicate' ? 'amber' : 'coral'}"
+                      >
+                        {row.status}
+                      </span>
+                    </td>
+                    <td class="cell-sm">
+                      {#if row.issues.length > 0}
+                        {row.issues.join(' ')}
+                      {:else if row.status === 'duplicate'}
+                        Existing money event already matches this row.
+                      {:else}
+                        Ready to import.
+                      {/if}
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {:else}
+          <div class="empty-state">
+            <div class="empty-glyph">&#9638;</div>
+            <p class="empty-msg">Choose a Tally workbook to preview the import.</p>
+          </div>
+        {/if}
+
+        {#if tallyLastResult}
+          <div class="tally-result card-subtle">
+            <div class="bank-detail-header">
+              <span class="bank-detail-title">Last Import Result</span>
+              <span class="cell-ref">
+                {tallyLastResult.imported} imported / {tallyLastResult.duplicates} duplicates / {tallyLastResult.errors} errors
+              </span>
+            </div>
+            <div class="tally-result-grid">
+              <div class="bank-summary-card card">
+                <span class="bank-summary-label">Imported</span>
+                <span class="bank-summary-value">{tallyLastResult.imported}</span>
+              </div>
+              <div class="bank-summary-card card">
+                <span class="bank-summary-label">New Parties</span>
+                <span class="bank-summary-value">{tallyLastResult.createdParties}</span>
+              </div>
+              <div class="bank-summary-card card">
+                <span class="bank-summary-label">Duplicates</span>
+                <span class="bank-summary-value">{tallyLastResult.duplicates}</span>
+              </div>
+              <div class="bank-summary-card card">
+                <span class="bank-summary-label">Errors</span>
+                <span class="bank-summary-value">{tallyLastResult.errors}</span>
+              </div>
+            </div>
+
+            {#if tallyLastResult.errorDetails.length > 0}
+              <div class="tally-errors">
+                {#each tallyLastResult.errorDetails as detail}
+                  <div class="cell-sm cell-muted">{detail}</div>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        {/if}
+      </section>
+
     <!-- AR AGING TAB -->
     {:else if activeTab === 'aging'}
       {@const displayAging = useLiveData ? agingRows : DEMO_AGING}
@@ -1150,6 +1397,14 @@
   type="file"
   accept=".csv,text/csv"
   onchange={handleBankImportSelected}
+/>
+
+<input
+  bind:this={tallyImportInput}
+  class="bank-import-input"
+  type="file"
+  accept=".xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  onchange={handleTallyFileSelected}
 />
 
 <CreateInvoiceModal open={showCreateInvoice} onclose={() => (showCreateInvoice = false)} />
@@ -1683,6 +1938,52 @@
     padding: var(--sp-34) var(--sp-13);
   }
 
+  .tally-shell {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-16);
+  }
+
+  .tally-toolbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--sp-16);
+    flex-wrap: wrap;
+    padding: var(--sp-16);
+    border-radius: 14px;
+  }
+
+  .tally-toolbar-actions {
+    margin-bottom: 0;
+    justify-content: flex-end;
+  }
+
+  .tally-summary-text {
+    font-size: var(--text-sm);
+    line-height: 1.4;
+  }
+
+  .tally-result {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-13);
+    padding: var(--sp-16);
+    border-radius: 14px;
+  }
+
+  .tally-result-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--sp-13);
+  }
+
+  .tally-errors {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-5);
+  }
+
   /* ── Aging summary ── */
   .aging-summary {
     margin-bottom: var(--sp-16);
@@ -1878,7 +2179,8 @@
 
   @media (max-width: 980px) {
     .bank-summary-grid,
-    .bank-recon-grid {
+    .bank-recon-grid,
+    .tally-result-grid {
       grid-template-columns: 1fr;
     }
   }
