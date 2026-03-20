@@ -3,7 +3,7 @@
   // Invoices | Payments | AR Aging
 
   import { parties, moneyEvents, lineItems, bankTransactions as stdbBankTransactions, getConnection } from '../db';
-  import { toast } from '../stores';
+  import { currentRole, toast } from '../stores';
   import { formatBHD, formatDate } from '../format';
   import { Timestamp } from 'spacetimedb';
   import CreateInvoiceModal from '../components/CreateInvoiceModal.svelte';
@@ -13,6 +13,7 @@
   import { computeARAgingRows, computeARAgingTotals } from '../business/arAging';
   import { buildPaymentCandidates, parseBankStatementCsv, suggestMatches } from '../business/bankReconciliation';
   import { enter } from '$lib/motion/asymm-motion';
+  import { executeSkill } from '../skills/executor';
 
   let showCreateInvoice = $state(false);
   let showRecordPayment = $state(false);
@@ -28,6 +29,7 @@
   let selectedCandidateId = $state<bigint | null>(null);
   let bankActionInFlight = $state(false);
   let bankImportInput: HTMLInputElement | null = null;
+  let exportingAging = $state(false);
 
   const tabs = [
     { id: 'invoices', label: 'Invoices' },
@@ -369,6 +371,30 @@
     generateStatementPdf({ party, moneyEvents: partyEvents });
   }
 
+  async function handleExportARAging() {
+    if (exportingAging) return;
+
+    exportingAging = true;
+    try {
+      const result = await executeSkill(
+        'export_to_excel',
+        { dataSource: 'AR Aging' },
+        {
+          userRole: $currentRole ?? '',
+          approved: true,
+        }
+      );
+
+      if (result.success) {
+        toast.success(result.summary);
+      } else {
+        toast.danger(result.summary);
+      }
+    } finally {
+      exportingAging = false;
+    }
+  }
+
   // ── Aging bar helpers ─────────────────────────────────
 
   function agingBarSegments(row: typeof DEMO_AGING[0]) {
@@ -578,6 +604,11 @@
 
     <!-- Actions -->
     <div class="hub-actions">
+      {#if activeTab === 'aging'}
+        <button class="btn btn-sm" onclick={handleExportARAging} disabled={exportingAging}>
+          {exportingAging ? 'Exporting...' : 'Export Aging'}
+        </button>
+      {/if}
       <button class="btn btn-gold btn-sm" onclick={() => (showCreateInvoice = true)}>+ Invoice</button>
       <button class="btn btn-sm" onclick={() => (showRecordPayment = true)}>+ Payment</button>
     </div>

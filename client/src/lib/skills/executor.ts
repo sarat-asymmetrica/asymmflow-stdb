@@ -34,6 +34,7 @@ import { buildARAgingSnapshot, buildOrderStatusSnapshot } from './querySkillLogi
 import { buildPaymentPredictionSnapshot } from './paymentPredictionLogic';
 import { executeDocumentSkill } from './documentExecutor';
 import { executeStatusSkill } from './statusExecutor';
+import { downloadARAgingWorkbook } from '../documents/excelExport';
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -423,6 +424,48 @@ async function handleQueryTopDebtors(
   };
 }
 
+async function handleExportToExcel(
+  params: Record<string, unknown>
+): Promise<SkillResult> {
+  const dataSource = String(params.dataSource ?? '').trim().toLowerCase();
+  const isARAgingExport =
+    dataSource === 'ar aging' ||
+    dataSource === 'aging' ||
+    dataSource === 'accounts receivable aging' ||
+    dataSource === 'overdue invoices';
+
+  if (!isARAgingExport) {
+    return {
+      success: false,
+      summary:
+        `Excel export is currently wired for AR aging only. ` +
+        `Try "AR Aging" as the data source.`,
+      error: 'unsupported_data_source',
+    };
+  }
+
+  const snapshot = buildARAgingSnapshot(
+    get(parties),
+    get(moneyEvents),
+    BigInt(Date.now()) * 1000n,
+  );
+
+  const filename = downloadARAgingWorkbook(snapshot);
+
+  return {
+    success: true,
+    summary:
+      snapshot.rows.length === 0
+        ? `AR aging workbook ${filename} generated with no outstanding balances.`
+        : `AR aging workbook ${filename} generated for ${snapshot.rows.length} customer${snapshot.rows.length === 1 ? '' : 's'}.`,
+    data: {
+      fileName: filename,
+      rowCount: snapshot.rows.length,
+      totalOutstandingFils: String(snapshot.totals.total),
+    },
+  };
+}
+
 async function handleCreateInvoice(
   params: Record<string, unknown>
 ): Promise<SkillResult> {
@@ -642,6 +685,9 @@ export async function executeSkill(
 
       case 'query_top_debtors':
         return await handleQueryTopDebtors(params);
+
+      case 'export_to_excel':
+        return await handleExportToExcel(params);
 
       case 'create_invoice':
         return await handleCreateInvoice(params);
