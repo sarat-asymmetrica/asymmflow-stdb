@@ -125,6 +125,7 @@
         kind: { tag: 'CustomerInvoice' } as MoneyEventKind,
         subtotalFils: BigInt(Math.round(parsed * 1000)),
         reference: invoiceRef.trim(),
+        sourceDate: undefined,
         dueDate: dueDateStr ? Timestamp.fromDate(new Date(dueDateStr)) : undefined,
       });
       toast.success('Invoice created.');

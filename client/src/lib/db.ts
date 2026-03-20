@@ -11,6 +11,7 @@ import type {
   Member, Party, Contact, Pipeline, Order, LineItem, AccessKey, AuthSession,
   PurchaseOrder, DeliveryNote, DeliveryNoteItem, GoodsReceivedNote, GrnItem,
   MoneyEvent, ActivityLog, AiAction, BankTransaction, DocSequence,
+  ChatMessage, AiMemory, FxRate, Product, StockEntry,
 } from '../module_bindings/types';
 import type { Identity } from 'spacetimedb';
 
@@ -19,12 +20,9 @@ export type {
   Member, Party, Contact, Pipeline, Order, LineItem, AccessKey, AuthSession,
   PurchaseOrder, DeliveryNote, DeliveryNoteItem, GoodsReceivedNote, GrnItem,
   MoneyEvent, ActivityLog, AiAction, BankTransaction, DocSequence,
+  ChatMessage, AiMemory, FxRate, Product, StockEntry,
 };
-
-// ChatMessage and AiMemory are not yet in module_bindings (pending STDB regen)
-// Use `any[]` until the generated types are available.
-export type ChatMessageRow = any;
-export type AiMemoryRow = any;
+export type { DbConnection } from '../module_bindings';
 
 // ── Connection state ──────────────────────────────────────────────────────────
 
@@ -52,11 +50,11 @@ export const activityLogs: Writable<ActivityLog[]>       = writable([]);
 export const aiActions: Writable<AiAction[]>             = writable([]);
 export const bankTransactions: Writable<BankTransaction[]> = writable([]);
 export const docSequences: Writable<DocSequence[]>         = writable([]);
-
-// ── Chat + Memory stores (new tables, module_bindings pending regen) ──────────
-
-export const chatMessages: Writable<any[]> = writable([]);
-export const aiMemories: Writable<any[]>   = writable([]);
+export const chatMessages: Writable<ChatMessage[]>         = writable([]);
+export const aiMemories: Writable<AiMemory[]>              = writable([]);
+export const fxRates: Writable<FxRate[]>                   = writable([]);
+export const products: Writable<Product[]>                 = writable([]);
+export const stockEntries: Writable<StockEntry[]>          = writable([]);
 
 // ── Live connection ──────────────────────────────────────────────────────────
 
@@ -122,16 +120,11 @@ function setupTableSync(c: DbConnection): void {
   sync(aiActions,       db.aiAction);
   sync(bankTransactions, db.bankTransaction);
   sync(docSequences,     db.docSequence);
-
-  // Defensive: chatMessage + aiMemory tables exist in the module but the
-  // generated bindings haven't been regenerated yet. Guard with optional
-  // chaining so builds succeed even without the generated types.
-  if ((db as any).chatMessage) {
-    sync(chatMessages, (db as any).chatMessage);
-  }
-  if ((db as any).aiMemory) {
-    sync(aiMemories, (db as any).aiMemory);
-  }
+  sync(chatMessages,     db.chatMessage);
+  sync(aiMemories,       db.aiMemory);
+  sync(fxRates,          db.fxRate);
+  sync(products,         db.product);
+  sync(stockEntries,     db.stockEntry);
 }
 
 function flushAllTables(c: DbConnection): void {
@@ -154,14 +147,11 @@ function flushAllTables(c: DbConnection): void {
   aiActions.set(iterToArray(db.aiAction.iter()));
   bankTransactions.set(iterToArray(db.bankTransaction.iter()));
   docSequences.set(iterToArray(db.docSequence.iter()));
-
-  // Defensive: guard against missing generated bindings
-  if ((db as any).chatMessage) {
-    chatMessages.set(iterToArray((db as any).chatMessage.iter()));
-  }
-  if ((db as any).aiMemory) {
-    aiMemories.set(iterToArray((db as any).aiMemory.iter()));
-  }
+  chatMessages.set(iterToArray(db.chatMessage.iter()));
+  aiMemories.set(iterToArray(db.aiMemory.iter()));
+  fxRates.set(iterToArray(db.fxRate.iter()));
+  products.set(iterToArray(db.product.iter()));
+  stockEntries.set(iterToArray(db.stockEntry.iter()));
 }
 
 // ── Connect ──────────────────────────────────────────────────────────────────
@@ -221,6 +211,9 @@ export function connect(): void {
           'SELECT * FROM doc_sequence',
           'SELECT * FROM chat_message',
           'SELECT * FROM ai_memory',
+          'SELECT * FROM fx_rate',
+          'SELECT * FROM product',
+          'SELECT * FROM stock_entry',
         ]);
     })
     .onDisconnect(() => {

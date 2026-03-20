@@ -162,6 +162,9 @@
             productTypes: p.productTypes,
             annualGoalFils: 0n,
             notes: p.notes,
+            bankIban: '',
+            bankSwift: '',
+            bankAccountName: '',
           });
           stats.parties++;
         } catch (e) {
@@ -268,6 +271,7 @@
             kind: { tag: 'CustomerInvoice' } as any,
             subtotalFils: BigInt(ev.subtotalFils),
             reference: ev.reference,
+            sourceDate: undefined,
             dueDate: isoToTimestamp(ev.dueDate),
           });
           stats.customerInvoices++;
@@ -309,6 +313,7 @@
             kind: { tag: 'CustomerPayment' } as any,
             subtotalFils: BigInt(ev.subtotalFils),
             reference: ev.reference,
+            sourceDate: undefined,
             dueDate: undefined,
           });
           stats.customerPayments++;
@@ -348,6 +353,7 @@
             kind: { tag: 'SupplierInvoice' } as any,
             subtotalFils: BigInt(ev.subtotalFils),
             reference: ev.reference,
+            sourceDate: undefined,
             dueDate: isoToTimestamp(ev.dueDate),
           });
           stats.supplierInvoices++;
@@ -387,6 +393,7 @@
             kind: { tag: 'SupplierPayment' } as any,
             subtotalFils: BigInt(ev.subtotalFils),
             reference: ev.reference,
+            sourceDate: undefined,
             dueDate: undefined,
           });
           stats.supplierPayments++;

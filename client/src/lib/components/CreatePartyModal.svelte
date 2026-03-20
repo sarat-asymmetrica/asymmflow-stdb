@@ -71,6 +71,9 @@
         notes: trn.trim()
           ? `TRN:${trn.trim()}\n${notes.trim()}`.trimEnd()
           : notes.trim(),
+        bankIban: '',
+        bankSwift: '',
+        bankAccountName: '',
       });
       toast.success(`Party "${trimmedName}" created.`);
       // Reset form

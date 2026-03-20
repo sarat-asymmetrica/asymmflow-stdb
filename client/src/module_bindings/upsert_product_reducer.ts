@@ -10,24 +10,16 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-import {
-  CustomerGrade,
-} from "./types";
-
 export default {
   id: __t.u64(),
+  sku: __t.string(),
   name: __t.string(),
-  isCustomer: __t.bool(),
-  isSupplier: __t.bool(),
-  get grade() {
-    return CustomerGrade;
-  },
-  creditLimitFils: __t.u64(),
-  paymentTermsDays: __t.u64(),
-  productTypes: __t.string(),
-  annualGoalFils: __t.u64(),
-  notes: __t.string(),
-  bankIban: __t.string(),
-  bankSwift: __t.string(),
-  bankAccountName: __t.string(),
+  category: __t.string(),
+  supplierPartyId: __t.option(__t.u64()),
+  unitCostFils: __t.u64(),
+  unitPriceFils: __t.u64(),
+  minMarkupBps: __t.u32(),
+  hsCode: __t.string(),
+  description: __t.string(),
+  isActive: __t.bool(),
 };

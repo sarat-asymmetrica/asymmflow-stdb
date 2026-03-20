@@ -28,6 +28,9 @@ export default __t.row({
   productTypes: __t.string().name("product_types"),
   annualGoalFils: __t.u64().name("annual_goal_fils"),
   notes: __t.string(),
+  bankIban: __t.string().name("bank_iban"),
+  bankSwift: __t.string().name("bank_swift"),
+  bankAccountName: __t.string().name("bank_account_name"),
   createdAt: __t.timestamp().name("created_at"),
   updatedAt: __t.timestamp().name("updated_at"),
 });

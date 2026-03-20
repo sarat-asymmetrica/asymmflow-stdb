@@ -10,19 +10,11 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-import {
-  MoneyEventKind,
-} from "./types";
-
 export default {
-  partyId: __t.u64(),
-  orderId: __t.option(__t.u64()),
-  deliveryNoteId: __t.option(__t.u64()),
-  get kind() {
-    return MoneyEventKind;
-  },
-  subtotalFils: __t.u64(),
-  reference: __t.string(),
-  sourceDate: __t.option(__t.timestamp()),
-  dueDate: __t.option(__t.timestamp()),
+  role: __t.string(),
+  content: __t.string(),
+  skillRequest: __t.option(__t.string()),
+  approvalStatus: __t.option(__t.string()),
+  transitionRequest: __t.option(__t.string()),
+  pipelineContext: __t.option(__t.string()),
 };

@@ -54,6 +54,9 @@ const sampleParty: Party = {
   isCreditBlocked: false,
   productTypes: 'Instrumentation',
   annualGoalFils: 0n,
+  bankIban: '',
+  bankSwift: '',
+  bankAccountName: '',
   createdAt: ts('2026-03-01T00:00:00Z'),
   updatedAt: ts('2026-03-01T00:00:00Z'),
 };
@@ -119,6 +122,7 @@ const sampleInvoice: MoneyEvent = {
   vatFils: 300_000n,
   totalFils: 3_300_000n,
   reference: 'INV-2026-001',
+  sourceDate: undefined,
   dueDate: ts('2026-04-04T00:00:00Z'),
   paidAt: undefined,
   createdBy: SAMPLE_IDENTITY,

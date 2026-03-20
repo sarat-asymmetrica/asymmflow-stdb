@@ -27,4 +27,7 @@ export default {
   productTypes: __t.string(),
   annualGoalFils: __t.u64(),
   notes: __t.string(),
+  bankIban: __t.string(),
+  bankSwift: __t.string(),
+  bankAccountName: __t.string(),
 };

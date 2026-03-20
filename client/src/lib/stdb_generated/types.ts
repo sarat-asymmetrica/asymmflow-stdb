@@ -67,6 +67,20 @@ export const AiActionStatus = __t.enum("AiActionStatus", {
 });
 export type AiActionStatus = __Infer<typeof AiActionStatus>;
 
+export const AiMemory = __t.object("AiMemory", {
+  id: __t.u64(),
+  category: __t.string(),
+  subject: __t.string(),
+  content: __t.string(),
+  confidence: __t.u32(),
+  source: __t.string(),
+  createdBy: __t.identity(),
+  createdAt: __t.timestamp(),
+  lastRelevantAt: __t.timestamp(),
+  expiresAt: __t.option(__t.timestamp()),
+});
+export type AiMemory = __Infer<typeof AiMemory>;
+
 // The tagged union or sum type for the algebraic type `AuthMethod`.
 export const AuthMethod = __t.enum("AuthMethod", {
   Bootstrap: __t.unit(),
@@ -113,6 +127,19 @@ export const BankTransaction = __t.object("BankTransaction", {
   importedBy: __t.identity(),
 });
 export type BankTransaction = __Infer<typeof BankTransaction>;
+
+export const ChatMessage = __t.object("ChatMessage", {
+  id: __t.u64(),
+  memberId: __t.identity(),
+  role: __t.string(),
+  content: __t.string(),
+  skillRequest: __t.option(__t.string()),
+  approvalStatus: __t.option(__t.string()),
+  transitionRequest: __t.option(__t.string()),
+  pipelineContext: __t.option(__t.string()),
+  createdAt: __t.timestamp(),
+});
+export type ChatMessage = __Infer<typeof ChatMessage>;
 
 export const Contact = __t.object("Contact", {
   id: __t.u64(),
@@ -189,6 +216,19 @@ export const EntityStatus = __t.enum("EntityStatus", {
   Cancelled: __t.unit(),
 });
 export type EntityStatus = __Infer<typeof EntityStatus>;
+
+export const FxRate = __t.object("FxRate", {
+  id: __t.u64(),
+  fromCurrency: __t.string(),
+  toCurrency: __t.string(),
+  rate: __t.u64(),
+  rateScale: __t.u32(),
+  effectiveDate: __t.timestamp(),
+  source: __t.string(),
+  createdBy: __t.identity(),
+  createdAt: __t.timestamp(),
+});
+export type FxRate = __Infer<typeof FxRate>;
 
 export const GoodsReceivedNote = __t.object("GoodsReceivedNote", {
   id: __t.u64(),
@@ -275,6 +315,7 @@ export const MoneyEvent = __t.object("MoneyEvent", {
   vatFils: __t.u64(),
   totalFils: __t.u64(),
   reference: __t.string(),
+  sourceDate: __t.option(__t.timestamp()),
   dueDate: __t.option(__t.timestamp()),
   paidAt: __t.option(__t.timestamp()),
   createdBy: __t.identity(),
@@ -321,6 +362,9 @@ export const Party = __t.object("Party", {
   productTypes: __t.string(),
   annualGoalFils: __t.u64(),
   notes: __t.string(),
+  bankIban: __t.string(),
+  bankSwift: __t.string(),
+  bankAccountName: __t.string(),
   createdAt: __t.timestamp(),
   updatedAt: __t.timestamp(),
 });
@@ -352,6 +396,23 @@ export const Pipeline = __t.object("Pipeline", {
 });
 export type Pipeline = __Infer<typeof Pipeline>;
 
+export const Product = __t.object("Product", {
+  id: __t.u64(),
+  sku: __t.string(),
+  name: __t.string(),
+  category: __t.string(),
+  supplierPartyId: __t.option(__t.u64()),
+  unitCostFils: __t.u64(),
+  unitPriceFils: __t.u64(),
+  minMarkupBps: __t.u32(),
+  hsCode: __t.string(),
+  description: __t.string(),
+  isActive: __t.bool(),
+  createdAt: __t.timestamp(),
+  updatedAt: __t.timestamp(),
+});
+export type Product = __Infer<typeof Product>;
+
 export const PurchaseOrder = __t.object("PurchaseOrder", {
   id: __t.u64(),
   partyId: __t.u64(),
@@ -367,6 +428,19 @@ export const PurchaseOrder = __t.object("PurchaseOrder", {
   updatedAt: __t.timestamp(),
 });
 export type PurchaseOrder = __Infer<typeof PurchaseOrder>;
+
+export const StockEntry = __t.object("StockEntry", {
+  id: __t.u64(),
+  productId: __t.u64(),
+  entryType: __t.string(),
+  quantity: __t.i64(),
+  referencePo: __t.string(),
+  referenceGrn: __t.string(),
+  notes: __t.string(),
+  createdBy: __t.identity(),
+  createdAt: __t.timestamp(),
+});
+export type StockEntry = __Infer<typeof StockEntry>;
 
 // The tagged union or sum type for the algebraic type `UserRole`.
 export const UserRole = __t.enum("UserRole", {

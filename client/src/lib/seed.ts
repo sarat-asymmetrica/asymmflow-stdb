@@ -90,6 +90,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Flow Meters, Pressure Transmitters, RTDs, SCADA Instruments',
     annualGoalFils: bhd(300_000),
     notes: 'Single largest customer by revenue. Bahrain\'s state utility. Framework contract for instrumentation supply. Pay terms 30 days but historically 60-90 days in practice. Several overdue invoices outstanding.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -105,6 +108,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Process Analyzers, Coriolis Flow Meters, Pressure Transmitters',
     annualGoalFils: bhd(200_000),
     notes: 'Bahrain Petroleum Company refinery. Primary refinery customer. Large 2026 pipeline with Opp 307 (197K BHD) and Opp 15 (103K BHD) both under evaluation. Sundar is account owner.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -120,6 +126,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Flow Meters, Temperature Instruments, Service & Calibration',
     annualGoalFils: bhd(80_000),
     notes: 'O&M contractor for Al Ezzel power plant. Regular repeat business for instrumentation spares and service. PH25/130 overdue 48K BHD since Dec 2025.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -135,6 +144,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Flow Meters, Temperature Sensors, Level Instruments',
     annualGoalFils: bhd(100_000),
     notes: 'World-class aluminium smelter. Line 6 expansion driving new instrumentation demand. Active 2026 PO on ORD-2026-017.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -150,6 +162,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Flow Meters, Pressure Transmitters, Gas Analyzers',
     annualGoalFils: bhd(60_000),
     notes: 'Saudi-UK joint venture steel plant, Hidd. Good payment history. 2026 Opp 303 worth 49K BHD under evaluation.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -165,6 +180,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Flow Meters, Hygenic Instruments, CIP Monitoring',
     annualGoalFils: bhd(40_000),
     notes: 'Dairy manufacturing plant, Bahrain. Regular orders for hygienic E+H instruments. Multiple overdue invoices (PH25/144, 145, 146, 157) totaling ~28K BHD.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -180,6 +198,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Pressure Transmitters, Analyzers, Flow Meters',
     annualGoalFils: bhd(80_000),
     notes: 'Joint venture SABIC/BAPCO/Petrogas. Steady instrumentation replacement and upgrade business. 2026 ORD-2026-016 active.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -195,6 +216,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Level Instruments, Flow Meters, Analyzers',
     annualGoalFils: bhd(50_000),
     notes: 'Tatweer-Total Slab Joint Venture. Regular instrumentation buyer. 2026 Opp 27 (12K) and Opp 18 (12K) both under evaluation.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -210,6 +234,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Flow Meters, Cooling Water Instruments',
     annualGoalFils: bhd(35_000),
     notes: 'National central cooling company. 2025 Opp 113 (26K BHD) PO/LOI received. 2026 ORD-2026-001 confirmed.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -225,6 +252,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Flow Meters, Water Monitoring, SCADA Sensors',
     annualGoalFils: bhd(100_000),
     notes: 'Bahrain Ministry of Works. Large 2025 pipeline: Opp 239 (175K BHD) under evaluation. Lost Opp 234 (163K) to competitor. Key Ebin account.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -240,6 +270,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Power Plant Instruments, Flow Meters, Pressure',
     annualGoalFils: bhd(30_000),
     notes: 'National O&M company. 2026 ORD-2026-015 confirmed. PH25/153 overdue 622 BHD since Jan 2026.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -255,6 +288,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Cryogenic Instruments, Flow Meters, Level',
     annualGoalFils: bhd(25_000),
     notes: 'LNG terminal operator. Two 2025 orders delivered. PH25/102 overdue since Sep 2025 (10.6K BHD).',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -270,6 +306,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Flow Meters, Temperature Sensors, Pressure',
     annualGoalFils: bhd(30_000),
     notes: 'Bahrain Steel. ORD-PH25/079 delivered (20K BHD). PH25/079 paid. Ebin account.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -285,6 +324,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Full Range — EPC contractor',
     annualGoalFils: bhd(300_000),
     notes: 'Major Bahrain EPC and trading group. Largest single confirmed 2026 order: ORD-2026-011 (194K BHD). Watch credit limit carefully.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -300,6 +342,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Flow Meters, Control Valves',
     annualGoalFils: bhd(30_000),
     notes: 'Trading company. PH25/116 overdue (24.7K BHD since Oct 2025). Chase via Abhie directly.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -315,6 +360,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Flow Meters, Level, Water Quality Analyzers',
     annualGoalFils: bhd(20_000),
     notes: 'Wastewater utility. Lost big Opp 53 (112K BHD) in 2024 on budget. Smaller active orders in 2025.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -330,6 +378,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Gas Analyzers, Flow Meters, Pressure',
     annualGoalFils: bhd(40_000),
     notes: 'Bahrain National Gas Company. Grade A customer with advance payment terms. Opp 201 (2024) won and paid.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -345,6 +396,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Full Range — Regulatory framework contracts',
     annualGoalFils: bhd(200_000),
     notes: 'National Oil and Gas Authority. Largest strategic account. Advance payment terms. Framework contract potential.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -360,6 +414,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Flow Meters, Water Quality, Dosing',
     annualGoalFils: bhd(25_000),
     notes: 'Water treatment company. 2026 orders ORD-2026-005 and ORD-2026-019 confirmed. Lost one deal to competitor in 2025.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -375,6 +432,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Flow Meters, Pressure',
     annualGoalFils: bhd(10_000),
     notes: 'Construction company. PH25/119 overdue (4.7K BHD since Oct 2025).',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -392,6 +452,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Flow, Level, Pressure, Temperature, Analytics — Complete E+H Range',
     annualGoalFils: 0n,
     notes: 'Swiss principal. PH Trading is authorised E+H distributor for Bahrain. Gold rebate tier. Primary strategic supplier — ~85% of PH revenue goes through E+H.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -407,6 +470,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Gas Analyzers, Oxygen Sensors, Combustion Analyzers',
     annualGoalFils: 0n,
     notes: 'UK principal. High-margin gas analysis brand. Ideal for BAPCO refinery gas lines. Payment to Servomex net 45 days from shipment.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -422,6 +488,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Energy Metering, Smart Meters, Grid Sensors',
     annualGoalFils: 0n,
     notes: 'Swiss energy metering supplier. ORD-PH25/058 was a 61K BHD pass-through order. Occasional large orders for EWA smart metering projects.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -437,6 +506,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'Industrial Instruments, Pressure Gauges, Thermowells',
     annualGoalFils: 0n,
     notes: 'Indian instrument supplier for lower-margin commodity items. Used when E+H price not competitive. 100% advance payment required.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -452,6 +524,9 @@ export async function seedDatabase(): Promise<void> {
     productTypes: 'DCS, Recorders, Pressure Transmitters, Flowmeters',
     annualGoalFils: 0n,
     notes: 'Japanese principal. Installed base at ALBA and TTSJV. Opp 177 (2025) worth 50K BHD under evaluation for YOKOGAWA supply. Sundar managing.',
+    bankIban: '',
+    bankSwift: '',
+    bankAccountName: '',
   });
   await pause();
 
@@ -1316,6 +1391,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerInvoice' },
     subtotalFils: bhd(44_066),
     reference: 'PH25/130',
+    sourceDate: undefined,
     dueDate: ts(2025, 12, 2),
   });
   await pause();
@@ -1329,6 +1405,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerInvoice' },
     subtotalFils: bhd(22_720.50),
     reference: 'PH25/151',
+    sourceDate: undefined,
     dueDate: ts(2026, 1, 15),
   });
   await pause();
@@ -1341,6 +1418,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerInvoice' },
     subtotalFils: bhd(22_475.20),
     reference: 'PH25/116',
+    sourceDate: undefined,
     dueDate: ts(2025, 10, 23),
   });
   await pause();
@@ -1353,6 +1431,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerInvoice' },
     subtotalFils: bhd(9_660.20),
     reference: 'PH25/102',
+    sourceDate: undefined,
     dueDate: ts(2025, 9, 30),
   });
   await pause();
@@ -1365,6 +1444,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerInvoice' },
     subtotalFils: bhd(8_652.60),
     reference: 'PH25/144',
+    sourceDate: undefined,
     dueDate: ts(2026, 1, 8),
   });
   await pause();
@@ -1377,6 +1457,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerInvoice' },
     subtotalFils: bhd(5_788.20),
     reference: 'PH25/157',
+    sourceDate: undefined,
     dueDate: ts(2026, 1, 30),
   });
   await pause();
@@ -1389,6 +1470,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerInvoice' },
     subtotalFils: bhd(4_290),
     reference: 'PH25/119',
+    sourceDate: undefined,
     dueDate: ts(2025, 10, 31),
   });
   await pause();
@@ -1401,6 +1483,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerInvoice' },
     subtotalFils: bhd(2_145),
     reference: 'PH25/155',
+    sourceDate: undefined,
     dueDate: ts(2025, 12, 31),
   });
   await pause();
@@ -1413,6 +1496,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerInvoice' },
     subtotalFils: bhd(566.27),
     reference: 'PH25/153',
+    sourceDate: undefined,
     dueDate: ts(2026, 1, 30),
   });
   await pause();
@@ -1425,6 +1509,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerInvoice' },
     subtotalFils: bhd(28_291.21),
     reference: 'PH25/036',
+    sourceDate: undefined,
     dueDate: ts(2025, 5, 15),
   });
   await pause();
@@ -1437,6 +1522,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerInvoice' },
     subtotalFils: bhd(20_240),
     reference: 'PH25/079',
+    sourceDate: undefined,
     dueDate: ts(2025, 9, 10),
   });
   await pause();
@@ -1449,6 +1535,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerInvoice' },
     subtotalFils: bhd(88_580),
     reference: 'INV-2026-001',
+    sourceDate: undefined,
     dueDate: daysFromNow(30),
   });
   await pause();
@@ -1461,6 +1548,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerInvoice' },
     subtotalFils: bhd(21_250),
     reference: 'INV-2026-003',
+    sourceDate: undefined,
     dueDate: daysFromNow(15),
   });
   await pause();
@@ -1473,6 +1561,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerInvoice' },
     subtotalFils: bhd(19_855),
     reference: 'INV-2026-004',
+    sourceDate: undefined,
     dueDate: daysFromNow(30),
   });
   await pause();
@@ -1485,6 +1574,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerInvoice' },
     subtotalFils: bhd(28_900.25),
     reference: 'INV-2026-005',
+    sourceDate: undefined,
     dueDate: daysFromNow(45),
   });
   await pause();
@@ -1499,6 +1589,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerPayment' },
     subtotalFils: bhd(31_120.33),
     reference: 'SULB-TT-20250520',
+    sourceDate: undefined,
     dueDate: undefined,
   });
   await pause();
@@ -1511,6 +1602,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerPayment' },
     subtotalFils: bhd(22_264),
     reference: 'BSTEEL-CHQ-20250915',
+    sourceDate: undefined,
     dueDate: undefined,
   });
   await pause();
@@ -1523,6 +1615,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerPayment' },
     subtotalFils: bhd(10_000),
     reference: 'BAPCO-TT-20260115',
+    sourceDate: undefined,
     dueDate: undefined,
   });
   await pause();
@@ -1535,6 +1628,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerPayment' },
     subtotalFils: bhd(5_000),
     reference: 'SEAPEAK-TT-20251020',
+    sourceDate: undefined,
     dueDate: undefined,
   });
   await pause();
@@ -1547,6 +1641,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerPayment' },
     subtotalFils: bhd(92_536),
     reference: 'GPIC-TT-20241215',
+    sourceDate: undefined,
     dueDate: undefined,
   });
   await pause();
@@ -1559,6 +1654,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerPayment' },
     subtotalFils: bhd(97_439.10),
     reference: 'YATEEM-TT-20260210',
+    sourceDate: undefined,
     dueDate: undefined,
   });
   await pause();
@@ -1571,6 +1667,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerPayment' },
     subtotalFils: bhd(10_000),
     reference: 'AHS-CHQ-20251115',
+    sourceDate: undefined,
     dueDate: undefined,
   });
   await pause();
@@ -1583,6 +1680,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerPayment' },
     subtotalFils: bhd(20_000),
     reference: 'ALEZZEL-TT-20260110',
+    sourceDate: undefined,
     dueDate: undefined,
   });
   await pause();
@@ -1595,6 +1693,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerPayment' },
     subtotalFils: bhd(10_920.50),
     reference: 'EWA-TT-20260225',
+    sourceDate: undefined,
     dueDate: undefined,
   });
   await pause();
@@ -1607,6 +1706,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'CustomerPayment' },
     subtotalFils: bhd(13_000),
     reference: 'TABREED-TT-20251010',
+    sourceDate: undefined,
     dueDate: undefined,
   });
   await pause();
@@ -1621,6 +1721,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'SupplierInvoice' },
     subtotalFils: bhd(86_000),
     reference: 'EH-INV-2025-3341',
+    sourceDate: undefined,
     dueDate: ts(2025, 9, 15),
   });
   await pause();
@@ -1633,6 +1734,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'SupplierInvoice' },
     subtotalFils: bhd(22_500),
     reference: 'EH-INV-2025-1872',
+    sourceDate: undefined,
     dueDate: ts(2025, 4, 20),
   });
   await pause();
@@ -1645,6 +1747,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'SupplierInvoice' },
     subtotalFils: bhd(55_542),
     reference: 'LG-INV-2025-0088',
+    sourceDate: undefined,
     dueDate: ts(2025, 6, 30),
   });
   await pause();
@@ -1659,6 +1762,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'SupplierPayment' },
     subtotalFils: bhd(86_000),
     reference: 'PH-TT-20250920-EH3341',
+    sourceDate: undefined,
     dueDate: undefined,
   });
   await pause();
@@ -1671,6 +1775,7 @@ export async function seedDatabase(): Promise<void> {
     kind: { tag: 'SupplierPayment' },
     subtotalFils: bhd(55_542),
     reference: 'PH-TT-20250710-LG0088',
+    sourceDate: undefined,
     dueDate: undefined,
   });
   await pause();

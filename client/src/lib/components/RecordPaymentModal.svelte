@@ -122,6 +122,7 @@
         kind:         { tag: 'CustomerPayment' } as MoneyEventKind,
         subtotalFils: amountFils,   // actual amount received, VAT-inclusive, no further VAT applied
         reference:    encodedRef,
+        sourceDate:   undefined,
         dueDate:      undefined,
       });
       toast.success('Payment recorded!');

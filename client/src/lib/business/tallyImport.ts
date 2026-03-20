@@ -504,6 +504,9 @@ export async function executeTallyImport(
           productTypes: '',
           annualGoalFils: 0n,
           notes: `Created from Tally import (${preview.mode.replace(/_/g, ' ')})`,
+          bankIban: '',
+          bankSwift: '',
+          bankAccountName: '',
         });
 
         const createdParty = await waitForPartyByName(
@@ -573,6 +576,7 @@ export async function executeTallyImport(
         kind: { tag: config.moneyKind } as MoneyEventKind,
         subtotalFils: row.subtotalFils,
         reference: row.reference,
+        sourceDate: undefined,
         dueDate,
       });
 

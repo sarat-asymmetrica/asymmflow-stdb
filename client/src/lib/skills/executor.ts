@@ -511,6 +511,7 @@ async function handleCreateInvoice(
       kind: { tag: 'CustomerInvoice' } as MoneyEventKind,
       subtotalFils: 0n,
       reference: '',
+      sourceDate: undefined,
       dueDate: undefined,
     });
 
@@ -562,6 +563,7 @@ async function handleRecordPayment(
       kind: { tag: 'CustomerPayment' } as MoneyEventKind,
       subtotalFils: amountBigInt,
       reference,
+      sourceDate: undefined,
       dueDate: undefined,
     });
 

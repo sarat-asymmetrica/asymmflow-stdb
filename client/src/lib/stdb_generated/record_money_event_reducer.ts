@@ -23,5 +23,6 @@ export default {
   },
   subtotalFils: __t.u64(),
   reference: __t.string(),
+  sourceDate: __t.option(__t.timestamp()),
   dueDate: __t.option(__t.timestamp()),
 };

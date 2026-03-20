@@ -30,6 +30,7 @@ export default __t.row({
   vatFils: __t.u64().name("vat_fils"),
   totalFils: __t.u64().name("total_fils"),
   reference: __t.string(),
+  sourceDate: __t.option(__t.timestamp()).name("source_date"),
   dueDate: __t.option(__t.timestamp()).name("due_date"),
   paidAt: __t.option(__t.timestamp()).name("paid_at"),
   createdBy: __t.identity().name("created_by"),

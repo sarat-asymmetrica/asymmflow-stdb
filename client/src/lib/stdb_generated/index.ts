@@ -44,6 +44,7 @@ import BootstrapAdminReducer from "./bootstrap_admin_reducer";
 import ConvertPipelineToOrderReducer from "./convert_pipeline_to_order_reducer";
 import CreateDeliveryNoteReducer from "./create_delivery_note_reducer";
 import CreateGrnReducer from "./create_grn_reducer";
+import DeleteAiMemoryReducer from "./delete_ai_memory_reducer";
 import DisputeBankTransactionReducer from "./dispute_bank_transaction_reducer";
 import ImportBankTransactionReducer from "./import_bank_transaction_reducer";
 import IssueAccessKeyReducer from "./issue_access_key_reducer";
@@ -54,14 +55,19 @@ import ManagePurchaseOrderReducer from "./manage_purchase_order_reducer";
 import MatchBankTransactionReducer from "./match_bank_transaction_reducer";
 import NextDocNumberReducer from "./next_doc_number_reducer";
 import ProposeAiActionReducer from "./propose_ai_action_reducer";
+import RecordFxRateReducer from "./record_fx_rate_reducer";
 import RecordMoneyEventReducer from "./record_money_event_reducer";
+import RecordStockMovementReducer from "./record_stock_movement_reducer";
 import RedeemAccessKeyReducer from "./redeem_access_key_reducer";
 import ResolveAiActionReducer from "./resolve_ai_action_reducer";
 import RevokeAuthSessionReducer from "./revoke_auth_session_reducer";
+import SaveAiMemoryReducer from "./save_ai_memory_reducer";
+import SaveChatMessageReducer from "./save_chat_message_reducer";
 import UnmatchBankTransactionReducer from "./unmatch_bank_transaction_reducer";
 import UpsertAuthSessionReducer from "./upsert_auth_session_reducer";
 import UpsertContactReducer from "./upsert_contact_reducer";
 import UpsertPartyReducer from "./upsert_party_reducer";
+import UpsertProductReducer from "./upsert_product_reducer";
 
 // Import all procedure arg schemas
 
@@ -69,12 +75,15 @@ import UpsertPartyReducer from "./upsert_party_reducer";
 import AccessKeyRow from "./access_key_table";
 import ActivityLogRow from "./activity_log_table";
 import AiActionRow from "./ai_action_table";
+import AiMemoryRow from "./ai_memory_table";
 import AuthSessionRow from "./auth_session_table";
 import BankTransactionRow from "./bank_transaction_table";
+import ChatMessageRow from "./chat_message_table";
 import ContactRow from "./contact_table";
 import DeliveryNoteRow from "./delivery_note_table";
 import DeliveryNoteItemRow from "./delivery_note_item_table";
 import DocSequenceRow from "./doc_sequence_table";
+import FxRateRow from "./fx_rate_table";
 import GoodsReceivedNoteRow from "./goods_received_note_table";
 import GrnItemRow from "./grn_item_table";
 import LineItemRow from "./line_item_table";
@@ -83,7 +92,9 @@ import MoneyEventRow from "./money_event_table";
 import OrderRow from "./order_table";
 import PartyRow from "./party_table";
 import PipelineRow from "./pipeline_table";
+import ProductRow from "./product_table";
 import PurchaseOrderRow from "./purchase_order_table";
+import StockEntryRow from "./stock_entry_table";
 
 /** Type-only namespace exports for generated type groups. */
 
@@ -140,6 +151,26 @@ const tablesSchema = __schema({
       { name: 'ai_action_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, AiActionRow),
+  aiMemory: __table({
+    name: 'ai_memory',
+    indexes: [
+      { name: 'memory_by_category', algorithm: 'btree', columns: [
+        'category',
+      ] },
+      { name: 'memory_by_created_by', algorithm: 'btree', columns: [
+        'createdBy',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'memory_by_subject', algorithm: 'btree', columns: [
+        'subject',
+      ] },
+    ],
+    constraints: [
+      { name: 'ai_memory_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, AiMemoryRow),
   authSession: __table({
     name: 'auth_session',
     indexes: [
@@ -177,6 +208,23 @@ const tablesSchema = __schema({
       { name: 'bank_transaction_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, BankTransactionRow),
+  chatMessage: __table({
+    name: 'chat_message',
+    indexes: [
+      { name: 'chat_by_created_at', algorithm: 'btree', columns: [
+        'createdAt',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'chat_by_member', algorithm: 'btree', columns: [
+        'memberId',
+      ] },
+    ],
+    constraints: [
+      { name: 'chat_message_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ChatMessageRow),
   contact: __table({
     name: 'contact',
     indexes: [
@@ -243,6 +291,24 @@ const tablesSchema = __schema({
       { name: 'doc_sequence_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, DocSequenceRow),
+  fxRate: __table({
+    name: 'fx_rate',
+    indexes: [
+      { name: 'fx_by_date', algorithm: 'btree', columns: [
+        'effectiveDate',
+      ] },
+      { name: 'fx_by_pair', algorithm: 'btree', columns: [
+        'fromCurrency',
+        'toCurrency',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'fx_rate_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FxRateRow),
   goodsReceivedNote: __table({
     name: 'goods_received_note',
     indexes: [
@@ -385,6 +451,26 @@ const tablesSchema = __schema({
       { name: 'pipeline_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, PipelineRow),
+  product: __table({
+    name: 'product',
+    indexes: [
+      { name: 'product_by_category', algorithm: 'btree', columns: [
+        'category',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'product_by_sku', algorithm: 'btree', columns: [
+        'sku',
+      ] },
+      { name: 'product_by_supplier', algorithm: 'btree', columns: [
+        'supplierPartyId',
+      ] },
+    ],
+    constraints: [
+      { name: 'product_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ProductRow),
   purchaseOrder: __table({
     name: 'purchase_order',
     indexes: [
@@ -402,6 +488,23 @@ const tablesSchema = __schema({
       { name: 'purchase_order_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, PurchaseOrderRow),
+  stockEntry: __table({
+    name: 'stock_entry',
+    indexes: [
+      { name: 'stock_by_type', algorithm: 'btree', columns: [
+        'entryType',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'stock_by_product', algorithm: 'btree', columns: [
+        'productId',
+      ] },
+    ],
+    constraints: [
+      { name: 'stock_entry_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, StockEntryRow),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
@@ -416,6 +519,7 @@ const reducersSchema = __reducers(
   __reducerSchema("convert_pipeline_to_order", ConvertPipelineToOrderReducer),
   __reducerSchema("create_delivery_note", CreateDeliveryNoteReducer),
   __reducerSchema("create_grn", CreateGrnReducer),
+  __reducerSchema("delete_ai_memory", DeleteAiMemoryReducer),
   __reducerSchema("dispute_bank_transaction", DisputeBankTransactionReducer),
   __reducerSchema("import_bank_transaction", ImportBankTransactionReducer),
   __reducerSchema("issue_access_key", IssueAccessKeyReducer),
@@ -426,14 +530,19 @@ const reducersSchema = __reducers(
   __reducerSchema("match_bank_transaction", MatchBankTransactionReducer),
   __reducerSchema("next_doc_number", NextDocNumberReducer),
   __reducerSchema("propose_ai_action", ProposeAiActionReducer),
+  __reducerSchema("record_fx_rate", RecordFxRateReducer),
   __reducerSchema("record_money_event", RecordMoneyEventReducer),
+  __reducerSchema("record_stock_movement", RecordStockMovementReducer),
   __reducerSchema("redeem_access_key", RedeemAccessKeyReducer),
   __reducerSchema("resolve_ai_action", ResolveAiActionReducer),
   __reducerSchema("revoke_auth_session", RevokeAuthSessionReducer),
+  __reducerSchema("save_ai_memory", SaveAiMemoryReducer),
+  __reducerSchema("save_chat_message", SaveChatMessageReducer),
   __reducerSchema("unmatch_bank_transaction", UnmatchBankTransactionReducer),
   __reducerSchema("upsert_auth_session", UpsertAuthSessionReducer),
   __reducerSchema("upsert_contact", UpsertContactReducer),
   __reducerSchema("upsert_party", UpsertPartyReducer),
+  __reducerSchema("upsert_product", UpsertProductReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
