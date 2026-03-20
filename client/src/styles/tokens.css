@@ -1,0 +1,168 @@
+/* V4 Design Tokens — Rams × Neumorphic Fusion */
+/* Space Grotesk · Warm Clay · Neumorphic Surfaces · Fibonacci Spacing */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* ── Surface (warm clay — never pure white/black) ── */
+  --paper: #ede8df;
+  --paper-elevated: #f0ebe2;
+  --paper-card: #ede8df;
+  --ink: #2a2722;
+  --ink-60: rgba(42, 39, 34, 0.6);
+  --ink-40: rgba(42, 39, 34, 0.4);
+  --ink-30: rgba(42, 39, 34, 0.3);
+  --ink-12: rgba(42, 39, 34, 0.12);
+  --ink-06: rgba(42, 39, 34, 0.06);
+  --ink-03: rgba(42, 39, 34, 0.03);
+
+  /* ── Kintsugi Gold — primary accent, used sparingly ── */
+  --gold: #c5a059;
+  --gold-soft: rgba(197, 160, 89, 0.15);
+  --gold-glow: rgba(197, 160, 89, 0.08);
+
+  /* ── Semantic Status Colors (Rams discipline: coral ONLY for danger) ── */
+  --sage: #7a9f80;
+  --sage-soft: rgba(122, 159, 128, 0.12);
+  --coral: #c4796b;
+  --coral-soft: rgba(196, 121, 107, 0.08);
+  --amber: #b8960c;
+  --amber-soft: rgba(184, 150, 12, 0.1);
+  --blue: #5a8ec9;
+  --blue-soft: rgba(90, 142, 201, 0.1);
+
+  /* ── Sidebar ── */
+  --sidebar-bg: #1a1a1a;
+  --sidebar-text: rgba(255, 255, 255, 0.25);
+  --sidebar-active: var(--gold);
+
+  /* ── Typography — ONE font, weight creates hierarchy ── */
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Space Grotesk', sans-serif;
+  --font-ui: 'Space Grotesk', sans-serif;
+  --font-data: 'Space Grotesk', sans-serif;
+
+  /* ── Font sizes (modular scale, base phi 1.618) ── */
+  --text-xs: 0.625rem;    /* 10px — labels, metadata */
+  --text-sm: 0.75rem;     /* 12px — secondary info */
+  --text-base: 0.875rem;  /* 14px — body default */
+  --text-md: 1rem;        /* 16px — emphasis */
+  --text-lg: 1.25rem;     /* 20px — section titles */
+  --text-xl: 1.618rem;    /* ~26px — card numbers */
+  --text-2xl: 2.75rem;    /* 44px — KPI display numbers */
+  --text-3xl: 4.236rem;   /* ~68px — hero numbers */
+
+  /* ── Spacing (Fibonacci scale) ── */
+  --sp-0: 0;
+  --sp-1: 1px;
+  --sp-2: 2px;
+  --sp-3: 3px;
+  --sp-4: 4px;
+  --sp-5: 5px;
+  --sp-8: 8px;
+  --sp-13: 13px;
+  --sp-16: 16px;
+  --sp-21: 21px;
+  --sp-24: 24px;
+  --sp-34: 34px;
+  --sp-40: 40px;
+  --sp-55: 55px;
+  --sp-89: 89px;
+
+  /* ── Border Radii ── */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 32px;
+  --radius-pill: 100px;
+
+  /* ── Shadows — Neumorphic (warm clay) ── */
+  --shadow-neu-raised: -6px -6px 14px rgba(253, 251, 247, 0.75),
+                        6px 6px 14px rgba(170, 160, 142, 0.3);
+  --shadow-neu-btn:    -2px -2px 5px rgba(253, 251, 247, 0.6),
+                        2px 2px 5px rgba(170, 160, 142, 0.22);
+  --shadow-neu-inset:  inset -4px -4px 8px rgba(253, 251, 247, 0.5),
+                       inset 4px 4px 8px rgba(170, 160, 142, 0.25);
+  --shadow-neu-subtle: -3px -3px 8px rgba(253, 251, 247, 0.6),
+                        3px 3px 8px rgba(170, 160, 142, 0.2);
+
+  /* Legacy shadow aliases (for components that still reference them) */
+  --shadow-sm: var(--shadow-neu-subtle);
+  --shadow-md: var(--shadow-neu-raised);
+  --shadow-lg: var(--shadow-neu-raised);
+  --shadow-gold: 0 0 0 2px var(--gold-soft);
+
+  /* ── Animation durations (Fibonacci timing in ms) ── */
+  --dur-instant: 89ms;
+  --dur-fast: 144ms;
+  --dur-normal: 233ms;
+  --dur-slow: 377ms;
+  --dur-slower: 610ms;
+  --dur-slowest: 987ms;
+  --dur-breath: 6000ms;
+
+  /* ── Easing curves ── */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-smooth: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-snap: cubic-bezier(0.68, -0.55, 0.27, 1.55);
+
+  /* ── Layout ── */
+  --sidebar-width: 64px;
+  --header-height: 52px;
+  --max-content: 1400px;
+
+  /* ── Z-index scale ── */
+  --z-base: 0;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 300;
+  --z-toast: 400;
+
+  /* ── Business / Currency ── */
+  --currency-decimals: 3;
+  --currency-symbol: 'BHD';
+}
+
+/* ═══ Global Keyframe Animations ═══ */
+
+@keyframes asymm-enter {
+  from { opacity: 0; transform: translateY(21px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes asymm-exit {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-8px); }
+}
+
+@keyframes asymm-ripple {
+  to { transform: scale(1); opacity: 0; }
+}
+
+@keyframes asymm-breathe {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.04); }
+}
+
+@keyframes asymm-highlight {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes asymm-shimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@keyframes asymm-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+@keyframes asymm-pop {
+  0%   { transform: scale(0.8); opacity: 0; }
+  60%  { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}

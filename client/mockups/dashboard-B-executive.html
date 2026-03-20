@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AsymmFlow Dashboard — Mockup B: Executive Brief</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lora:ital,wght@0,400;0,600;1,400;1,600&family=Outfit:wght@300;400;500;600&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --paper:   #fdfbf7;
+      --ink:     #1c1c1c;
+      --ink-2:   #4a4a4a;
+      --ink-3:   #8a8a8a;
+      --white:   #ffffff;
+      --gold:    #c5a059;
+      --gold-lt: #f0e6cc;
+      --sage:    #4EBC80;
+      --sage-lt: #d4f5e3;
+      --amber:   #D4A017;
+      --amber-lt:#fdf3d0;
+      --coral:   #D75B42;
+      --coral-lt:#fde3dc;
+      --blue:    #66AACC;
+      --blue-lt: #ddf0f7;
+      --shadow:  0 2px 16px rgba(0,0,0,0.07), 0 1px 4px rgba(0,0,0,0.04);
+      --shadow-hover: 0 6px 28px rgba(0,0,0,0.11), 0 2px 8px rgba(0,0,0,0.06);
+      --radius:  10px;
+    }
+
+    html { font-size: 16px; }
+
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+      padding: 48px 56px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    /* ID tag on every component */
+    .id-tag {
+      display: inline-block;
+      font-family: 'Outfit', sans-serif;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      color: #aaa;
+      background: #f0ede8;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 2px 7px;
+      vertical-align: middle;
+      line-height: 1.5;
+      user-select: none;
+    }
+
+    .component-label {
+      margin-bottom: 14px;
+    }
+
+    /* ── CARD BASE ── */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      transition: box-shadow 200ms ease, transform 200ms ease;
+    }
+    .card:hover { box-shadow: var(--shadow-hover); }
+
+    /* ── SECTION SPACING ── */
+    .section { margin-bottom: 40px; }
+
+    /* ─────────────────────────────────────────
+       1. HEADER
+    ───────────────────────────────────────── */
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 48px;
+    }
+
+    .header-greeting h1 {
+      font-family: 'Cinzel', serif;
+      font-size: 2.6rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: var(--ink);
+      line-height: 1.15;
+    }
+
+    .header-greeting .subtitle {
+      font-family: 'Lora', serif;
+      font-style: italic;
+      font-size: 1rem;
+      color: var(--ink-2);
+      margin-top: 8px;
+    }
+
+    .cash-card {
+      padding: 20px 28px;
+      min-width: 240px;
+      text-align: right;
+    }
+
+    .cash-card .cash-label {
+      font-family: 'Outfit', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      margin-bottom: 6px;
+    }
+
+    .cash-card .cash-value {
+      font-family: 'Courier Prime', monospace;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.01em;
+    }
+
+    .cash-card .cash-trend {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 5px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--sage);
+      margin-top: 6px;
+    }
+
+    .trend-arrow {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* ─────────────────────────────────────────
+       2. KPI-B1 — Large KPI Cards
+    ───────────────────────────────────────── */
+    .kpi-large-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .kpi-large-card {
+      padding: 32px;
+      border-left: 4px solid transparent;
+      position: relative;
+    }
+
+    .kpi-large-card.sage-border  { border-left-color: var(--sage); }
+    .kpi-large-card.amber-border { border-left-color: var(--amber); }
+    .kpi-large-card.coral-border { border-left-color: var(--coral); }
+
+    .kpi-large-card .kpi-icon {
+      position: absolute;
+      top: 28px;
+      right: 28px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .kpi-large-card .kpi-icon.sage-bg  { background: var(--sage-lt); }
+    .kpi-large-card .kpi-icon.amber-bg { background: var(--amber-lt); }
+    .kpi-large-card .kpi-icon.coral-bg { background: var(--coral-lt); }
+
+    .kpi-large-card .kpi-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      margin-bottom: 16px;
+    }
+
+    .kpi-large-card .kpi-value {
+      font-family: 'Courier Prime', monospace;
+      font-size: 2.4rem;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+
+    .kpi-large-card .kpi-sub {
+      font-family: 'Lora', serif;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .kpi-large-card .kpi-sub.positive { color: var(--sage); }
+    .kpi-large-card .kpi-sub.amber    { color: var(--amber); }
+    .kpi-large-card .kpi-sub.coral    { color: var(--coral); }
+
+    .dot-indicator {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot-amber { background: var(--amber); }
+    .dot-coral { background: var(--coral); }
+
+    /* ─────────────────────────────────────────
+       3. KPI-B2 — Secondary Metrics
+    ───────────────────────────────────────── */
+    .kpi-secondary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    .kpi-secondary-card {
+      padding: 24px 28px;
+    }
+
+    .kpi-secondary-card .sec-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      margin-bottom: 14px;
+    }
+
+    .kpi-secondary-card .sec-value {
+      font-family: 'Courier Prime', monospace;
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.01em;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .kpi-secondary-card .sec-sub {
+      font-family: 'Outfit', sans-serif;
+      font-size: 12px;
+      color: var(--ink-3);
+    }
+
+    /* Collection Rate SVG Ring */
+    .ring-container {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .ring-svg {
+      flex-shrink: 0;
+    }
+
+    .ring-info .sec-value { margin-bottom: 4px; }
+
+    /* ─────────────────────────────────────────
+       4. CHART-B1 — Revenue & Collections
+    ───────────────────────────────────────── */
+    .chart-card {
+      padding: 40px;
+    }
+
+    .chart-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+
+    .chart-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--ink);
+      letter-spacing: 0.02em;
+    }
+
+    .chart-subtitle {
+      font-family: 'Lora', serif;
+      font-style: italic;
+      font-size: 0.875rem;
+      color: var(--ink-3);
+      margin-top: 4px;
+    }
+
+    .chart-legend {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--ink-2);
+    }
+
+    .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+    }
+
+    .chart-area-wrapper {
+      position: relative;
+      width: 100%;
+    }
+
+    .chart-svg {
+      width: 100%;
+      height: 280px;
+      overflow: visible;
+    }
+
+    .axis-label {
+      font-family: 'Outfit', sans-serif;
+      font-size: 11px;
+      fill: #aaa;
+    }
+
+    .axis-value {
+      font-family: 'Courier Prime', monospace;
+      font-size: 11px;
+      fill: #aaa;
+    }
+
+    /* ─────────────────────────────────────────
+       5+6. BOTTOM ROW
+    ───────────────────────────────────────── */
+    .bottom-row {
+      display: grid;
+      grid-template-columns: 2fr 3fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    /* grade-B1 */
+    .grade-card {
+      padding: 36px;
+    }
+
+    .section-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--ink);
+      letter-spacing: 0.02em;
+      margin-bottom: 6px;
+    }
+
+    .section-subtitle {
+      font-family: 'Lora', serif;
+      font-style: italic;
+      font-size: 0.8rem;
+      color: var(--ink-3);
+      margin-bottom: 28px;
+    }
+
+    .grade-bar-item {
+      margin-bottom: 22px;
+    }
+
+    .grade-bar-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .grade-label {
+      font-family: 'Lora', serif;
+      font-style: italic;
+      font-size: 1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .grade-badge {
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cinzel', serif;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .grade-count {
+      font-family: 'Outfit', sans-serif;
+      font-size: 12px;
+      color: var(--ink-3);
+    }
+
+    .grade-track {
+      width: 100%;
+      height: 10px;
+      background: #f0ede8;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .grade-fill {
+      height: 100%;
+      border-radius: 5px;
+      transition: width 600ms ease;
+    }
+
+    /* table-B1 */
+    .table-card {
+      padding: 36px;
+    }
+
+    .customers-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .customers-table th {
+      font-family: 'Outfit', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      text-align: left;
+      padding: 0 12px 14px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .customers-table td {
+      font-family: 'Outfit', sans-serif;
+      font-size: 14px;
+      color: var(--ink-2);
+      padding: 0 12px;
+      height: 48px;
+      border-bottom: 1px solid #f5f2ed;
+      vertical-align: middle;
+    }
+
+    .customers-table tr {
+      transition: background 200ms ease, border-left-color 200ms ease;
+      border-left: 3px solid transparent;
+    }
+
+    .customers-table tbody tr:hover {
+      background: #fffdf9;
+      border-left-color: var(--gold);
+    }
+
+    .customers-table td:last-child { padding-right: 0; }
+
+    .customer-name {
+      font-family: 'Lora', serif;
+      font-weight: 600;
+      color: var(--ink);
+      font-size: 14px;
+    }
+
+    .table-grade-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px; height: 24px;
+      border-radius: 5px;
+      font-family: 'Cinzel', serif;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .amount-cell {
+      font-family: 'Courier Prime', monospace;
+      font-size: 14px;
+      color: var(--ink);
+      font-weight: 700;
+      text-align: right;
+    }
+
+    .progress-cell { min-width: 130px; }
+
+    .progress-track {
+      width: 100%;
+      height: 7px;
+      background: #f0ede8;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: var(--sage);
+    }
+
+    .progress-pct {
+      font-family: 'Outfit', sans-serif;
+      font-size: 11px;
+      color: var(--ink-3);
+    }
+
+    /* BHD prefix */
+    .bhd {
+      font-family: 'Outfit', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--ink-3);
+      letter-spacing: 0.04em;
+      vertical-align: middle;
+      margin-right: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       1. HEADER — header-B1
+  ════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="component-label"><span class="id-tag">header-B1</span></div>
+    <div class="header-row">
+      <div class="header-greeting">
+        <h1>Good afternoon, Sarat</h1>
+        <p class="subtitle">Tuesday, March 10, 2026 &mdash; PH Trading WLL</p>
+      </div>
+
+      <div class="card cash-card">
+        <div class="cash-label">Cash Position</div>
+        <div class="cash-value"><span class="bhd">BHD</span>34,509.500</div>
+        <div class="cash-trend">
+          <svg class="trend-arrow" viewBox="0 0 18 18" fill="none">
+            <path d="M9 14V4M9 4L4.5 8.5M9 4L13.5 8.5" stroke="#4EBC80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          +8.3% vs last month
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       2. KPI-B1 — Large KPI Cards
+  ════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="component-label"><span class="id-tag">kpi-B1</span></div>
+    <div class="kpi-large-grid">
+
+      <!-- Revenue MTD -->
+      <div class="card kpi-large-card sage-border">
+        <div class="kpi-icon sage-bg">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M10 16V4M10 4L5 9M10 4L15 9" stroke="#4EBC80" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="kpi-title">Revenue MTD</div>
+        <div class="kpi-value"><span class="bhd">BHD</span>42,750.000</div>
+        <div class="kpi-sub positive">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M7 11V3M7 3L3 7M7 3L11 7" stroke="#4EBC80" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          +12% vs last month
+        </div>
+      </div>
+
+      <!-- Outstanding -->
+      <div class="card kpi-large-card amber-border">
+        <div class="kpi-icon amber-bg">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <circle cx="10" cy="10" r="7" stroke="#D4A017" stroke-width="2"/>
+            <path d="M10 7v4M10 13v.5" stroke="#D4A017" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="kpi-title">Outstanding</div>
+        <div class="kpi-value"><span class="bhd">BHD</span>8,240.500</div>
+        <div class="kpi-sub amber">
+          <span class="dot-indicator dot-amber"></span>
+          15 unpaid invoices
+        </div>
+      </div>
+
+      <!-- Overdue -->
+      <div class="card kpi-large-card coral-border">
+        <div class="kpi-icon coral-bg">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M10 3L2 17h16L10 3z" stroke="#D75B42" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M10 9v4M10 14.5v.5" stroke="#D75B42" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="kpi-title">Overdue</div>
+        <div class="kpi-value"><span class="bhd">BHD</span>1,850.000</div>
+        <div class="kpi-sub coral">
+          <span class="dot-indicator dot-coral"></span>
+          3 invoices past due
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       3. KPI-B2 — Secondary Metrics
+  ════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="component-label"><span class="id-tag">kpi-B2</span></div>
+    <div class="kpi-secondary-grid">
+
+      <!-- Pipeline Value -->
+      <div class="card kpi-secondary-card">
+        <div class="sec-title">Pipeline Value</div>
+        <div class="sec-value"><span class="bhd">BHD</span>156,000.000</div>
+        <div class="sec-sub">8 opportunities</div>
+      </div>
+
+      <!-- Collection Rate — with SVG ring -->
+      <div class="card kpi-secondary-card">
+        <div class="sec-title">Collection Rate</div>
+        <div class="ring-container">
+          <svg class="ring-svg" width="64" height="64" viewBox="0 0 64 64">
+            <!-- Background track -->
+            <circle cx="32" cy="32" r="26"
+              fill="none"
+              stroke="#f0ede8"
+              stroke-width="7"
+            />
+            <!-- Progress arc: circumference = 2π×26 ≈ 163.36 -->
+            <!-- 87.5% of 163.36 ≈ 142.94; gap = 163.36 - 142.94 = 20.42 -->
+            <circle cx="32" cy="32" r="26"
+              fill="none"
+              stroke="#4EBC80"
+              stroke-width="7"
+              stroke-linecap="round"
+              stroke-dasharray="142.94 20.42"
+              stroke-dashoffset="40.84"
+              transform="rotate(-90 32 32)"
+            />
+            <text x="32" y="37" text-anchor="middle"
+              font-family="'Courier Prime', monospace"
+              font-size="13"
+              font-weight="700"
+              fill="#1c1c1c">87.5%</text>
+          </svg>
+          <div class="ring-info">
+            <div class="sec-value" style="font-size:1.35rem;">87.5%</div>
+            <div class="sec-sub">of invoiced amount<br/>collected on time</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Orders -->
+      <div class="card kpi-secondary-card">
+        <div class="sec-title">Active Orders</div>
+        <div class="sec-value">12</div>
+        <div class="sec-sub">4 in progress &middot; 8 pending</div>
+      </div>
+
+      <!-- Customer Base -->
+      <div class="card kpi-secondary-card">
+        <div class="sec-title">Parties</div>
+        <div class="sec-value">535</div>
+        <div class="sec-sub">379 customers &middot; 156 suppliers</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       4. CHART-B1 — Revenue & Collections
+  ════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="component-label"><span class="id-tag">chart-B1</span></div>
+    <div class="card chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Revenue &amp; Collections Timeline</div>
+          <div class="chart-subtitle">April 2025 &ndash; March 2026 &mdash; Monthly comparison</div>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item">
+            <div class="legend-swatch" style="background:#c5a059; opacity:0.75;"></div>
+            Revenue
+          </div>
+          <div class="legend-item">
+            <div class="legend-swatch" style="background:#4EBC80; opacity:0.75;"></div>
+            Collections
+          </div>
+        </div>
+      </div>
+
+      <!-- SVG chart: 12 months, dual area -->
+      <div class="chart-area-wrapper">
+        <svg class="chart-svg" viewBox="0 0 1100 280" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <linearGradient id="grad-gold" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#c5a059" stop-opacity="0.55"/>
+              <stop offset="100%" stop-color="#c5a059" stop-opacity="0.04"/>
+            </linearGradient>
+            <linearGradient id="grad-sage" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#4EBC80" stop-opacity="0.45"/>
+              <stop offset="100%" stop-color="#4EBC80" stop-opacity="0.04"/>
+            </linearGradient>
+          </defs>
+
+          <!--
+            Months: Apr May Jun Jul Aug Sep Oct Nov Dec Jan Feb Mar
+            X positions: 60, 150, 240, 330, 420, 510, 600, 690, 780, 870, 960, 1050
+            Chart area: y 20 (top) → 220 (bottom baseline), height 200
+            Revenue values (BHD '000): 28 32 29 35 38 31 40 36 42 38 44 43
+            Collections:               24 28 26 31 33 27 36 32 38 34 40 38
+            Max ~44k → scale: value/44 × 200
+          -->
+
+          <!-- Y axis value labels -->
+          <text x="48" y="28"  class="axis-value" text-anchor="end">44K</text>
+          <text x="48" y="78"  class="axis-value" text-anchor="end">33K</text>
+          <text x="48" y="128" class="axis-value" text-anchor="end">22K</text>
+          <text x="48" y="178" class="axis-value" text-anchor="end">11K</text>
+          <text x="48" y="224" class="axis-value" text-anchor="end">0</text>
+
+          <!-- Subtle horizontal guide lines -->
+          <line x1="60" y1="220" x2="1060" y2="220" stroke="#eee" stroke-width="1"/>
+          <line x1="60" y1="170" x2="1060" y2="170" stroke="#f5f2ed" stroke-width="1"/>
+          <line x1="60" y1="120" x2="1060" y2="120" stroke="#f5f2ed" stroke-width="1"/>
+          <line x1="60" y1="70"  x2="1060" y2="70"  stroke="#f5f2ed" stroke-width="1"/>
+          <line x1="60" y1="20"  x2="1060" y2="20"  stroke="#f5f2ed" stroke-width="1"/>
+
+          <!--
+            Y formula: 220 - (val/44)*200
+            Revenue points:
+              Apr 28→92.7  May 32→74.5  Jun 29→88.2  Jul 35→60.9  Aug 38→47.3
+              Sep 31→78.9  Oct 40→38.2  Nov 36→56.4  Dec 42→29.1  Jan 38→47.3
+              Feb 44→20.0  Mar 43→24.5
+            Collections:
+              Apr 24→111  May 28→92.7  Jun 26→101.8  Jul 31→78.9  Aug 33→70.0
+              Sep 27→97.3  Oct 36→56.4  Nov 32→74.5  Dec 38→47.3  Jan 34→65.5
+              Feb 40→38.2  Mar 38→47.3
+          -->
+
+          <!-- Revenue area -->
+          <path d="
+            M60,220
+            L60,92.7 L150,74.5 L240,88.2 L330,60.9 L420,47.3
+            L510,78.9 L600,38.2 L690,56.4 L780,29.1 L870,47.3
+            L960,20.0 L1050,24.5
+            L1050,220 Z
+          " fill="url(#grad-gold)"/>
+
+          <!-- Revenue line -->
+          <polyline points="
+            60,92.7 150,74.5 240,88.2 330,60.9 420,47.3
+            510,78.9 600,38.2 690,56.4 780,29.1 870,47.3
+            960,20.0 1050,24.5
+          "
+          fill="none" stroke="#c5a059" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+
+          <!-- Collections area -->
+          <path d="
+            M60,220
+            L60,111 L150,92.7 L240,101.8 L330,78.9 L420,70.0
+            L510,97.3 L600,56.4 L690,74.5 L780,47.3 L870,65.5
+            L960,38.2 L1050,47.3
+            L1050,220 Z
+          " fill="url(#grad-sage)"/>
+
+          <!-- Collections line -->
+          <polyline points="
+            60,111 150,92.7 240,101.8 330,78.9 420,70.0
+            510,97.3 600,56.4 690,74.5 780,47.3 870,65.5
+            960,38.2 1050,47.3
+          "
+          fill="none" stroke="#4EBC80" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="none"/>
+
+          <!-- Revenue dots -->
+          <circle cx="60"   cy="92.7" r="4" fill="#c5a059"/>
+          <circle cx="150"  cy="74.5" r="4" fill="#c5a059"/>
+          <circle cx="240"  cy="88.2" r="4" fill="#c5a059"/>
+          <circle cx="330"  cy="60.9" r="4" fill="#c5a059"/>
+          <circle cx="420"  cy="47.3" r="4" fill="#c5a059"/>
+          <circle cx="510"  cy="78.9" r="4" fill="#c5a059"/>
+          <circle cx="600"  cy="38.2" r="4" fill="#c5a059"/>
+          <circle cx="690"  cy="56.4" r="4" fill="#c5a059"/>
+          <circle cx="780"  cy="29.1" r="4" fill="#c5a059"/>
+          <circle cx="870"  cy="47.3" r="4" fill="#c5a059"/>
+          <circle cx="960"  cy="20.0" r="5" fill="#c5a059" stroke="#fff" stroke-width="2"/>
+          <circle cx="1050" cy="24.5" r="4" fill="#c5a059"/>
+
+          <!-- Collections dots -->
+          <circle cx="60"   cy="111"  r="3.5" fill="#4EBC80"/>
+          <circle cx="150"  cy="92.7" r="3.5" fill="#4EBC80"/>
+          <circle cx="240"  cy="101.8"r="3.5" fill="#4EBC80"/>
+          <circle cx="330"  cy="78.9" r="3.5" fill="#4EBC80"/>
+          <circle cx="420"  cy="70.0" r="3.5" fill="#4EBC80"/>
+          <circle cx="510"  cy="97.3" r="3.5" fill="#4EBC80"/>
+          <circle cx="600"  cy="56.4" r="3.5" fill="#4EBC80"/>
+          <circle cx="690"  cy="74.5" r="3.5" fill="#4EBC80"/>
+          <circle cx="780"  cy="47.3" r="3.5" fill="#4EBC80"/>
+          <circle cx="870"  cy="65.5" r="3.5" fill="#4EBC80"/>
+          <circle cx="960"  cy="38.2" r="4.5" fill="#4EBC80" stroke="#fff" stroke-width="2"/>
+          <circle cx="1050" cy="47.3" r="3.5" fill="#4EBC80"/>
+
+          <!-- X axis month labels -->
+          <text x="60"   y="248" class="axis-label" text-anchor="middle">Apr</text>
+          <text x="150"  y="248" class="axis-label" text-anchor="middle">May</text>
+          <text x="240"  y="248" class="axis-label" text-anchor="middle">Jun</text>
+          <text x="330"  y="248" class="axis-label" text-anchor="middle">Jul</text>
+          <text x="420"  y="248" class="axis-label" text-anchor="middle">Aug</text>
+          <text x="510"  y="248" class="axis-label" text-anchor="middle">Sep</text>
+          <text x="600"  y="248" class="axis-label" text-anchor="middle">Oct</text>
+          <text x="690"  y="248" class="axis-label" text-anchor="middle">Nov</text>
+          <text x="780"  y="248" class="axis-label" text-anchor="middle">Dec</text>
+          <text x="870"  y="248" class="axis-label" text-anchor="middle">Jan</text>
+          <text x="960"  y="248" class="axis-label" text-anchor="middle">Feb</text>
+          <text x="1050" y="248" class="axis-label" text-anchor="middle">Mar</text>
+
+          <!-- Year watermarks -->
+          <text x="285"  y="268" class="axis-label" text-anchor="middle" opacity="0.6">2025</text>
+          <text x="870"  y="268" class="axis-label" text-anchor="middle" opacity="0.6">2026</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       5+6. BOTTOM ROW — Grade Dist + Top Customers
+  ════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="component-label" style="margin-bottom:14px;">
+      <span class="id-tag">grade-B1</span>
+      &nbsp;&nbsp;
+      <span class="id-tag">table-B1</span>
+    </div>
+
+    <div class="bottom-row">
+
+      <!-- grade-B1 -->
+      <div class="card grade-card">
+        <div class="section-title">Customer Grade Distribution</div>
+        <div class="section-subtitle">379 active customers across 4 tiers</div>
+
+        <!-- Grade A -->
+        <div class="grade-bar-item">
+          <div class="grade-bar-header">
+            <div class="grade-label">
+              <span class="grade-badge" style="background:#4EBC80;">A</span>
+              Premium
+            </div>
+            <div class="grade-count">89 customers &middot; 23%</div>
+          </div>
+          <div class="grade-track">
+            <div class="grade-fill" style="width:23%; background:#4EBC80;"></div>
+          </div>
+        </div>
+
+        <!-- Grade B -->
+        <div class="grade-bar-item">
+          <div class="grade-bar-header">
+            <div class="grade-label">
+              <span class="grade-badge" style="background:#66AACC;">B</span>
+              Preferred
+            </div>
+            <div class="grade-count">142 customers &middot; 38%</div>
+          </div>
+          <div class="grade-track">
+            <div class="grade-fill" style="width:38%; background:#66AACC;"></div>
+          </div>
+        </div>
+
+        <!-- Grade C -->
+        <div class="grade-bar-item">
+          <div class="grade-bar-header">
+            <div class="grade-label">
+              <span class="grade-badge" style="background:#c5a059;">C</span>
+              Standard
+            </div>
+            <div class="grade-count">108 customers &middot; 28%</div>
+          </div>
+          <div class="grade-track">
+            <div class="grade-fill" style="width:28%; background:#c5a059;"></div>
+          </div>
+        </div>
+
+        <!-- Grade D -->
+        <div class="grade-bar-item">
+          <div class="grade-bar-header">
+            <div class="grade-label">
+              <span class="grade-badge" style="background:#D75B42;">D</span>
+              Watch
+            </div>
+            <div class="grade-count">40 customers &middot; 11%</div>
+          </div>
+          <div class="grade-track">
+            <div class="grade-fill" style="width:11%; background:#D75B42;"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- table-B1 -->
+      <div class="card table-card">
+        <div class="section-title">Top Customers by Outstanding</div>
+        <div class="section-subtitle">Ranked by unpaid balance &mdash; hover for detail</div>
+
+        <table class="customers-table">
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th style="text-align:center;">Grade</th>
+              <th style="text-align:right;">Invoiced</th>
+              <th style="text-align:right;">Outstanding</th>
+              <th style="text-align:left; padding-left:20px;">Collected</th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <tr>
+              <td><span class="customer-name">Gulf Horizon Engineering W.L.L.</span></td>
+              <td style="text-align:center;">
+                <span class="table-grade-badge" style="background:#4EBC80;">A</span>
+              </td>
+              <td class="amount-cell">
+                <span class="bhd">BHD</span>12,450.000
+              </td>
+              <td class="amount-cell" style="color:#D75B42;">
+                <span class="bhd">BHD</span>2,840.000
+              </td>
+              <td class="progress-cell" style="padding-left:20px;">
+                <div class="progress-pct">77%</div>
+                <div class="progress-track">
+                  <div class="progress-fill" style="width:77%;"></div>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="customer-name">Manama Industrial Supplies Co.</span></td>
+              <td style="text-align:center;">
+                <span class="table-grade-badge" style="background:#66AACC;">B</span>
+              </td>
+              <td class="amount-cell">
+                <span class="bhd">BHD</span>9,200.000
+              </td>
+              <td class="amount-cell" style="color:#D4A017;">
+                <span class="bhd">BHD</span>1,980.000
+              </td>
+              <td class="progress-cell" style="padding-left:20px;">
+                <div class="progress-pct">78%</div>
+                <div class="progress-track">
+                  <div class="progress-fill" style="width:78%;"></div>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="customer-name">Al Razi Technical Trading B.S.C.</span></td>
+              <td style="text-align:center;">
+                <span class="table-grade-badge" style="background:#4EBC80;">A</span>
+              </td>
+              <td class="amount-cell">
+                <span class="bhd">BHD</span>18,700.000
+              </td>
+              <td class="amount-cell" style="color:#D4A017;">
+                <span class="bhd">BHD</span>1,650.000
+              </td>
+              <td class="progress-cell" style="padding-left:20px;">
+                <div class="progress-pct">91%</div>
+                <div class="progress-track">
+                  <div class="progress-fill" style="width:91%;"></div>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="customer-name">Riffa Petrochemicals &amp; Trading</span></td>
+              <td style="text-align:center;">
+                <span class="table-grade-badge" style="background:#c5a059;">C</span>
+              </td>
+              <td class="amount-cell">
+                <span class="bhd">BHD</span>6,550.000
+              </td>
+              <td class="amount-cell" style="color:#D75B42;">
+                <span class="bhd">BHD</span>1,120.500
+              </td>
+              <td class="progress-cell" style="padding-left:20px;">
+                <div class="progress-pct">83%</div>
+                <div class="progress-track">
+                  <div class="progress-fill" style="width:83%;"></div>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td><span class="customer-name">Seef General Contracting W.L.L.</span></td>
+              <td style="text-align:center;">
+                <span class="table-grade-badge" style="background:#D75B42;">D</span>
+              </td>
+              <td class="amount-cell">
+                <span class="bhd">BHD</span>4,200.000
+              </td>
+              <td class="amount-cell" style="color:#D75B42;">
+                <span class="bhd">BHD</span>650.000
+              </td>
+              <td class="progress-cell" style="padding-left:20px;">
+                <div class="progress-pct">85%</div>
+                <div class="progress-track">
+                  <div class="progress-fill" style="width:85%;"></div>
+                </div>
+              </td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>

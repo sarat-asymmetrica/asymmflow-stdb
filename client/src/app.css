@@ -1,0 +1,296 @@
+/* AsymmFlow V4 — Rams × Neumorphic Global Styles */
+/* Warm clay surfaces, Space Grotesk precision, tactile affordance */
+
+@import "./styles/tokens.css";
+@import "tailwindcss";
+
+/* ── Base ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background-color: var(--paper);
+}
+
+#app {
+  min-height: 100dvh;
+}
+
+/* ── Typography utilities ── */
+.font-display { font-family: var(--font-display); font-weight: 300; letter-spacing: -0.04em; }
+.font-body    { font-family: var(--font-body); font-weight: 400; }
+.font-ui      { font-family: var(--font-ui); font-weight: 400; }
+.font-data    { font-family: var(--font-data); font-weight: 300; letter-spacing: -0.02em; }
+
+/* Label style — Rams uppercase precision */
+.label {
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-30);
+}
+
+/* ── Color utilities ── */
+.text-sage   { color: var(--sage); }
+.text-coral  { color: var(--coral); }
+.text-amber  { color: var(--amber); }
+.text-blue   { color: var(--blue); }
+.text-gold   { color: var(--gold); }
+.text-muted  { color: var(--ink-60); }
+.text-faint  { color: var(--ink-30); }
+
+.bg-sage-soft  { background-color: var(--sage-soft); }
+.bg-coral-soft { background-color: var(--coral-soft); }
+.bg-amber-soft { background-color: var(--amber-soft); }
+.bg-blue-soft  { background-color: var(--blue-soft); }
+.bg-gold-soft  { background-color: var(--gold-soft); }
+.bg-card       { background-color: var(--paper-card); }
+.bg-elevated   { background-color: var(--paper-elevated); }
+
+/* ── Card — Neumorphic raised surface ── */
+.card {
+  background-color: var(--paper-card);
+  border: none;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-neu-raised);
+}
+
+.card-subtle {
+  background-color: var(--paper-card);
+  border: none;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-neu-subtle);
+}
+
+.card-inset {
+  background-color: var(--paper-card);
+  border: none;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-neu-inset);
+}
+
+/* Card with danger accent (e.g., overdue KPI) */
+.card-danger {
+  background-color: var(--paper-card);
+  border: none;
+  border-top: 2px solid var(--coral);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-neu-raised);
+}
+
+/* ── Amount display (BHD currency) ── */
+.amount {
+  font-family: var(--font-data);
+  font-size: var(--text-base);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.amount-lg {
+  font-family: var(--font-data);
+  font-size: var(--text-xl);
+  font-weight: 300;
+  letter-spacing: -0.03em;
+}
+
+.amount-xl {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 300;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+/* ── Status badge ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--sp-2) var(--sp-8);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.badge-sage  { background-color: var(--sage-soft);  color: var(--sage); }
+.badge-coral { background-color: var(--coral-soft); color: var(--coral); }
+.badge-amber { background-color: var(--amber-soft); color: var(--amber); }
+.badge-blue  { background-color: var(--blue-soft);  color: var(--blue); }
+.badge-muted { background-color: var(--ink-06);     color: var(--ink-60); }
+
+/* Neumorphic badge (pill chip) */
+.badge-neu {
+  background-color: var(--paper-card);
+  box-shadow: var(--shadow-neu-btn);
+  color: var(--ink-40);
+}
+
+/* ── Button — Neumorphic tactile ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-5);
+  padding: var(--sp-8) var(--sp-16);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  background-color: var(--paper-card);
+  box-shadow: var(--shadow-neu-btn);
+  color: var(--ink-40);
+  transition:
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-instant) var(--ease-out);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.btn:hover:not(:disabled) {
+  color: var(--ink);
+  box-shadow: -3px -3px 6px rgba(253, 251, 247, 0.7),
+               3px 3px 6px rgba(170, 160, 142, 0.28);
+}
+
+.btn:active:not(:disabled) {
+  box-shadow: var(--shadow-neu-inset);
+  transform: scale(0.98);
+}
+
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.btn-primary {
+  background-color: var(--ink);
+  color: var(--paper);
+  box-shadow: none;
+}
+.btn-primary:hover:not(:disabled) { opacity: 0.85; box-shadow: none; }
+.btn-primary:active:not(:disabled) { transform: scale(0.97); box-shadow: none; }
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--ink-40);
+  box-shadow: none;
+}
+.btn-ghost:hover:not(:disabled) {
+  color: var(--ink);
+  background-color: var(--ink-03);
+  box-shadow: none;
+}
+
+.btn-gold {
+  background-color: var(--paper-card);
+  color: var(--gold);
+  box-shadow: var(--shadow-neu-btn);
+}
+.btn-gold:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+/* ── Input — Neumorphic inset (concave = "type here") ── */
+.input {
+  width: 100%;
+  padding: var(--sp-8) var(--sp-13);
+  border: none;
+  border-radius: var(--radius-md);
+  background-color: var(--paper-card);
+  box-shadow: var(--shadow-neu-inset);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  font-weight: 400;
+  color: var(--ink);
+  outline: none;
+  transition: box-shadow var(--dur-fast) var(--ease-out);
+}
+.input:focus {
+  box-shadow: var(--shadow-neu-inset), 0 0 0 2px var(--gold-soft);
+}
+.input::placeholder { color: var(--ink-30); }
+
+/* ── Divider ── */
+.divider {
+  height: 1px;
+  background-color: var(--ink-06);
+  border: none;
+  margin: var(--sp-21) 0;
+}
+
+/* ── Structural rule (Rams bold line) ── */
+.rule {
+  height: 2px;
+  background-color: var(--ink);
+  border: none;
+}
+
+/* ── Scroll ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--ink-12); border-radius: var(--radius-pill); }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-30); }
+
+/* ═══ Motion Utilities ═══ */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(21px);
+  transition:
+    opacity var(--dur-slow) var(--ease-out),
+    transform var(--dur-slow) var(--ease-out);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.status-alive {
+  animation: asymm-breathe 6s ease-in-out infinite;
+}
+
+.enter {
+  animation: asymm-enter var(--dur-slow) var(--ease-out) both;
+  animation-delay: var(--enter-delay, 0ms);
+}
+
+.pop {
+  animation: asymm-pop var(--dur-normal) var(--ease-spring) both;
+}
+
+.shake {
+  animation: asymm-shake var(--dur-normal) var(--ease-out);
+}
+
+/* Reduced motion: respect user preference */
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .enter,
+  .pop,
+  .shake,
+  .status-alive {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

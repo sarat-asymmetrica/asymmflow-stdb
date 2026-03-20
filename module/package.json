@@ -1,0 +1,22 @@
+{
+  "name": "module",
+  "version": "1.0.0",
+  "description": "AsymmFlow — chat-first agentic ERP for PH Trading WLL (Bahrain)",
+  "type": "module",
+  "scripts": {
+    "build": "spacetime build",
+    "publish": "spacetime publish",
+    "test": "tsx src/milestone1.test.ts && tsx src/auth_flow.test.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "spacetimedb": "^2.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.4.0",
+    "tsx": "^4.21.0",
+    "typescript": "~5.6.2"
+  }
+}

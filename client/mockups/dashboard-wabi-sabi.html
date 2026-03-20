@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AsymmFlow | Wabi-Sabi Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-paper: #fdfbf7;      /* Kinari (Warm White) */
+            --color-ink: #1c1c1c;        /* Sumi (Charcoal) */
+            --color-ink-light: #57534e;  /* Grey Wash */
+            --color-ink-faint: #e5e5e5;  /* Lightest Grey */
+            --color-accent: #ef4444;     /* Stamp Red */
+            
+            --font-serif: 'Georgia', 'Times New Roman', serif;
+            --font-mono: 'Courier Prime', monospace;
+        }
+
+        /* Essential Reset */
+        *, *::before, *::after { box-sizing: border-box; }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--color-paper);
+            color: var(--color-ink);
+            font-family: var(--font-serif);
+            line-height: 1.6;
+            cursor: none; /* For custom cursor */
+            overflow-x: hidden;
+            
+            /* SVG Noise for Paper Texture */
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+        }
+
+        /* --- Custom Cursor --- */
+        #cursor-dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--color-ink);
+            border-radius: 50%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        #cursor-ring {
+            width: 36px;
+            height: 36px;
+            border: 1px solid rgba(28, 28, 28, 0.4);
+            border-radius: 50%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 9998;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s ease, height 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        /* --- Layout & Grid --- */
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+            padding: 40px 60px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-gap: 60px;
+            opacity: 0; /* for GSAP fade-in */
+        }
+        
+        .col-span-full { grid-column: 1 / -1; }
+        .col-span-2 { grid-column: span 2; }
+        .col-span-1 { grid-column: span 1; }
+
+        /* --- Header --- */
+        header {
+            position: relative;
+            padding-bottom: 30px;
+            border-bottom: 1px solid var(--color-ink-faint);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        
+        .japanese-watermark {
+            position: absolute;
+            top: -20px;
+            left: 0;
+            font-size: 80px;
+            color: var(--color-ink-faint);
+            opacity: 0.4;
+            letter-spacing: 0.2em;
+            writing-mode: horizontal-tb;
+            z-index: -1;
+            user-select: none;
+        }
+
+        h1 {
+            font-weight: normal;
+            font-size: 42px;
+            margin: 0;
+            letter-spacing: -1px;
+            line-height: 1;
+        }
+
+        .subtitle-group {
+            display: flex;
+            align-items: baseline;
+            gap: 16px;
+            margin-top: 12px;
+        }
+
+        .stamp {
+            border: 1.5px solid var(--color-accent);
+            color: var(--color-accent);
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: bold;
+            font-family: var(--font-mono);
+            border-radius: 2px;
+            transform: rotate(-3deg);
+            display: inline-block;
+            user-select: none;
+        }
+
+        .meta-text {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--color-ink-light);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pulse-dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--color-ink);
+            border-radius: 50%;
+            display: inline-block;
+            animation: breathe 4s infinite ease-in-out;
+        }
+
+        @keyframes breathe {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.3); }
+        }
+
+        /* --- Sections --- */
+        .section-title {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--color-ink-light);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 24px;
+            opacity: 0.8;
+        }
+
+        /* --- KPI Grid --- */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+        }
+
+        .kpi-item {
+            position: relative;
+            padding-bottom: 12px;
+            cursor: none;
+        }
+
+        .kpi-item::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background-color: var(--color-ink-faint);
+            transform-origin: left;
+            transition: transform 0.4s ease, background-color 0.4s ease;
+        }
+        
+        .kpi-item:hover::after {
+            background-color: var(--color-ink);
+            transform: scaleY(2);
+        }
+
+        .kpi-label {
+            font-size: 14px;
+            color: var(--color-ink-light);
+            margin-bottom: 8px;
+            font-style: italic;
+        }
+
+        .kpi-value {
+            font-family: var(--font-mono);
+            font-size: 28px;
+            color: var(--color-ink);
+            letter-spacing: -1px;
+            margin-bottom: 4px;
+        }
+        
+        .kpi-currency {
+            font-size: 14px;
+            color: var(--color-ink-light);
+            margin-right: 4px;
+        }
+
+        .kpi-trend {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--color-ink-light);
+        }
+
+        .kpi-trend.positive { color: var(--color-ink); }
+        .kpi-trend.negative { color: var(--color-accent); }
+
+        /* --- Ink Wash Chart --- */
+        .chart-wrapper {
+            position: relative;
+            height: 250px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .chart-canvas {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .chart-metrics {
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid var(--color-ink-faint);
+            padding-top: 16px;
+        }
+        
+        .chart-metric-item { display: flex; flex-direction: column; gap: 4px; }
+        .cmi-label { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; color: var(--color-ink-light); }
+        .cmi-val { font-family: var(--font-mono); font-size: 14px; color: var(--color-ink); }
+
+        /* --- Zen Grid Data Table --- */
+        table.zen-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .zen-table th {
+            text-align: left;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--color-ink-light);
+            font-weight: normal;
+            color: var(--color-ink-light);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 10px;
+        }
+
+        .zen-table td {
+            padding: 16px 0;
+            border-bottom: 1px solid var(--color-ink-faint);
+            transition: all 0.3s ease;
+            position: relative;
+            cursor: none;
+        }
+        
+        .zen-table td.num { text-align: right; }
+        .zen-table th.num { text-align: right; }
+
+        .zen-table tr:hover td {
+            color: var(--color-ink);
+            transform: translateX(4px);
+            border-bottom-color: var(--color-ink);
+        }
+
+        /* --- AR Aging (Ink Opacity instead of Colors) --- */
+        .aging-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .aging-item {
+            width: 100%;
+            cursor: none;
+        }
+
+        .aging-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-style: italic;
+        }
+        
+        .aging-total {
+            font-family: var(--font-mono);
+            font-style: normal;
+            font-size: 12px;
+        }
+
+        .ink-bar-container {
+            width: 100%;
+            height: 8px;
+            display: flex;
+            gap: 2px;
+        }
+        
+        .ink-segment {
+            height: 100%;
+            transition: opacity 0.3s ease;
+        }
+        
+        .aging-item:hover .ink-segment:not(:hover) {
+            opacity: 0.3;
+        }
+
+        /* Shades of Ink */
+        .ink-1 { background-color: rgba(28, 28, 28, 0.2); } /* 0-15 */
+        .ink-2 { background-color: rgba(28, 28, 28, 0.4); } /* 15-30 */
+        .ink-3 { background-color: rgba(28, 28, 28, 0.6); } /* 30-60 */
+        .ink-4 { background-color: rgba(28, 28, 28, 0.8); } /* 60-90 */
+        .ink-5 { background-color: rgba(239, 68, 68, 0.9); } /* 90+ Accent Red */
+
+        /* --- Activity Feed (Timeline) --- */
+        .feed-list {
+            position: relative;
+            padding-left: 20px;
+        }
+        
+        .feed-list::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 5px;
+            width: 1px;
+            height: 100%;
+            background: linear-gradient(to bottom, var(--color-ink-light) 0%, transparent 100%);
+        }
+
+        .feed-item {
+            position: relative;
+            padding-bottom: 24px;
+            font-size: 14px;
+            color: var(--color-ink);
+            transform-origin: left;
+            transition: opacity 0.3s, transform 0.3s;
+            cursor: none;
+        }
+        
+        .feed-item:hover {
+            transform: translateX(4px);
+        }
+
+        .feed-item::before {
+            content: '';
+            position: absolute;
+            top: 6px;
+            left: -17px;
+            width: 5px;
+            height: 5px;
+            background-color: var(--color-paper);
+            border: 1px solid var(--color-ink);
+            border-radius: 50%;
+            transition: background-color 0.3s;
+        }
+        
+        .feed-item:hover::before {
+            background-color: var(--color-ink);
+        }
+        
+        .feed-item.urgent::before {
+            border-color: var(--color-accent);
+            background-color: var(--color-accent);
+        }
+
+        .feed-time {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--color-ink-light);
+            display: block;
+            margin-bottom: 4px;
+        }
+        
+        .feed-amount {
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        /* Utility */
+        .magnetic-target { display: inline-block; }
+
+    </style>
+</head>
+<body>
+
+    <!-- Custom Cursor -->
+    <div id="cursor-dot"></div>
+    <div id="cursor-ring"></div>
+
+    <div class="container" id="main-container">
+        
+        <!-- Header -->
+        <header class="col-span-full gs-reveal">
+            <div class="japanese-watermark">非対称性</div>
+            <div>
+                <div class="subtitle-group">
+                    <span class="stamp">LIVE</span>
+                    <span class="meta-text">
+                        <span class="pulse-dot"></span>
+                        AsymmFlow • PH Trading WLL
+                    </span>
+                </div>
+                <h1>Revenue Resonance</h1>
+            </div>
+            
+            <div class="meta-text" style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                <span id="sys-clock">--:-- 00 Mar</span>
+                <span style="opacity: 0.6; font-size: 9px;">FY 2025–26</span>
+            </div>
+        </header>
+
+        <!-- Top KPI Grid -->
+        <div class="col-span-full gs-reveal">
+            <div class="section-title">Current State / Flow</div>
+            <div class="kpi-grid">
+                
+                <div class="kpi-item interactive-el">
+                    <div class="kpi-label">Revenue MTD</div>
+                    <div class="kpi-value"><span class="kpi-currency">BHD</span>42,750</div>
+                    <div class="kpi-trend positive">+8.4% drift</div>
+                </div>
+                
+                <div class="kpi-item interactive-el">
+                    <div class="kpi-label">Outstanding</div>
+                    <div class="kpi-value"><span class="kpi-currency">BHD</span>8,240</div>
+                    <div class="kpi-trend negative">+2.1% accumulation</div>
+                </div>
+                
+                <div class="kpi-item interactive-el">
+                    <div class="kpi-label">Overdue</div>
+                    <div class="kpi-value"><span class="kpi-currency">BHD</span>1,850</div>
+                    <div class="kpi-trend negative">+12.3% stasis</div>
+                </div>
+                
+                <div class="kpi-item interactive-el">
+                    <div class="kpi-label">Pipeline</div>
+                    <div class="kpi-value"><span class="kpi-currency">BHD</span>156k</div>
+                    <div class="kpi-trend positive">surging</div>
+                </div>
+
+                <div class="kpi-item interactive-el">
+                    <div class="kpi-label">Collection Rate</div>
+                    <div class="kpi-value">87.5%</div>
+                    <div class="kpi-trend positive">optimal harmony</div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Left Column: Chart -->
+        <div class="col-span-2 gs-reveal">
+            <div class="section-title">Revenue Trajectory (Annual)</div>
+            
+            <div class="chart-wrapper interactive-el">
+                <canvas id="inkChart" class="chart-canvas"></canvas>
+            </div>
+            
+            <div class="chart-metrics">
+                <div class="chart-metric-item">
+                    <span class="cmi-label">YTD Volume</span>
+                    <span class="cmi-val">BHD 428,500</span>
+                </div>
+                <div class="chart-metric-item">
+                    <span class="cmi-label">Peak Saturation</span>
+                    <span class="cmi-val">Nov (40.0k)</span>
+                </div>
+                <div class="chart-metric-item">
+                    <span class="cmi-label">Avg Flow</span>
+                    <span class="cmi-val">35,708 / mo</span>
+                </div>
+            </div>
+
+            <!-- Table underneath Chart -->
+            <div class="section-title" style="margin-top: 50px;">Customer Flow State</div>
+            <table class="zen-table">
+                <thead>
+                    <tr>
+                        <th>Entity</th>
+                        <th>Quality</th>
+                        <th class="num">Invoiced</th>
+                        <th class="num">Open</th>
+                        <th class="num">Harmony %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="interactive-el">
+                        <td>Al Jazeera Steel</td>
+                        <td>Optimal</td>
+                        <td class="num">18,400</td>
+                        <td class="num">2,250</td>
+                        <td class="num">87.8%</td>
+                    </tr>
+                    <tr class="interactive-el">
+                        <td>Gulf Pumps WLL</td>
+                        <td>Stable</td>
+                        <td class="num">12,100</td>
+                        <td class="num">2,500</td>
+                        <td class="num">79.3%</td>
+                    </tr>
+                    <tr class="interactive-el">
+                        <td>Bahrain Piping</td>
+                        <td>Turbulent</td>
+                        <td class="num">8,950</td>
+                        <td class="num">1,850</td>
+                        <td class="num">62.0%</td>
+                    </tr>
+                    <tr class="interactive-el">
+                        <td>BAPCO Services</td>
+                        <td>Critical</td>
+                        <td class="num">4,200</td>
+                        <td class="num">840</td>
+                        <td class="num">45.5%</td>
+                    </tr>
+                </tbody>
+            </table>
+
+        </div>
+
+        <!-- Right Column: AR Aging & Feed -->
+        <div class="col-span-1 gs-reveal">
+            <div class="section-title">AR Aging Concentration</div>
+            
+            <div class="aging-list" style="margin-bottom: 50px;">
+                
+                <div class="aging-item interactive-el">
+                    <div class="aging-header">
+                        <span>Al Jazeera Steel</span>
+                        <span class="aging-total">BHD 2,250</span>
+                    </div>
+                    <!-- 1,200 | 600 | 300 | 150 | 0 -->
+                    <!-- 53% | 27% | 13% | 7% | 0% -->
+                    <div class="ink-bar-container">
+                        <div class="ink-segment ink-1" style="width: 53.3%"></div>
+                        <div class="ink-segment ink-2" style="width: 26.7%"></div>
+                        <div class="ink-segment ink-3" style="width: 13.3%"></div>
+                        <div class="ink-segment ink-4" style="width: 6.7%"></div>
+                    </div>
+                </div>
+
+                <div class="aging-item interactive-el">
+                    <div class="aging-header">
+                        <span>Gulf Pumps WLL</span>
+                        <span class="aging-total">BHD 2,500</span>
+                    </div>
+                    <!-- 32% | 48% | 16% | 4% | 0% -->
+                    <div class="ink-bar-container">
+                        <div class="ink-segment ink-1" style="width: 32%"></div>
+                        <div class="ink-segment ink-2" style="width: 48%"></div>
+                        <div class="ink-segment ink-3" style="width: 16%"></div>
+                        <div class="ink-segment ink-4" style="width: 4%"></div>
+                    </div>
+                </div>
+
+                <div class="aging-item interactive-el">
+                    <div class="aging-header">
+                        <span>Bahrain Piping</span>
+                        <span class="aging-total">BHD 1,850</span>
+                    </div>
+                    <!-- 21.6% | 16.2% | 32.4% | 16.2% | 13.5% (red) -->
+                    <div class="ink-bar-container">
+                        <div class="ink-segment ink-1" style="width: 21.6%"></div>
+                        <div class="ink-segment ink-2" style="width: 16.2%"></div>
+                        <div class="ink-segment ink-3" style="width: 32.4%"></div>
+                        <div class="ink-segment ink-4" style="width: 16.2%"></div>
+                        <div class="ink-segment ink-5" style="width: 13.5%" title="Critical Void"></div>
+                    </div>
+                </div>
+                
+                <!-- Legend -->
+                <div style="display: flex; gap: 8px; font-family: var(--font-mono); font-size: 9px; color: var(--color-ink-light); margin-top: 8px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items:center; gap:3px;"><span class="ink-1" style="width:6px;height:6px;display:block;"></span> 0-15</div>
+                    <div style="display: flex; align-items:center; gap:3px;"><span class="ink-2" style="width:6px;height:6px;display:block;"></span> 16-30</div>
+                    <div style="display: flex; align-items:center; gap:3px;"><span class="ink-3" style="width:6px;height:6px;display:block;"></span> 31-60</div>
+                    <div style="display: flex; align-items:center; gap:3px;"><span class="ink-4" style="width:6px;height:6px;display:block;"></span> 61-90</div>
+                    <div style="display: flex; align-items:center; gap:3px;"><span class="ink-5" style="width:6px;height:6px;display:block;"></span> 90+</div>
+                </div>
+            </div>
+
+            <!-- Feed -->
+            <div class="section-title">Timeline & Echoes</div>
+            <div class="feed-list">
+                <div class="feed-item interactive-el">
+                    <span class="feed-time">10:42 AM</span>
+                    Payment received from <em>Al Jazeera Steel</em>.<br>
+                    <span class="feed-amount">+ BHD 1,450.000</span>
+                </div>
+                <div class="feed-item interactive-el urgent">
+                    <span class="feed-time">09:15 AM</span>
+                    Alert: <em>BAPCO Services</em> invoice #1042 crossed into critical aging (90+ days).
+                </div>
+                <div class="feed-item interactive-el" style="opacity: 0.7">
+                    <span class="feed-time">Yesterday</span>
+                    Invoice #1098 generated for <em>Gulf Pumps WLL</em>.<br>
+                    <span class="feed-amount">BHD 3,200.000</span>
+                </div>
+                <div class="feed-item interactive-el" style="opacity: 0.5">
+                    <span class="feed-time">Yesterday</span>
+                    Order fulfillment confirmed for <em>NASS Group</em>.
+                </div>
+                <div class="feed-item interactive-el" style="opacity: 0.3; padding-bottom: 0;">
+                    <span class="feed-time">Mar 08</span>
+                    System backup harmony verified.
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        // --- Custom Cursor Logic ---
+        const cursorDot = document.getElementById('cursor-dot');
+        const cursorRing = document.getElementById('cursor-ring');
+        
+        let mouseX = window.innerWidth / 2;
+        let mouseY = window.innerHeight / 2;
+        let ringX = mouseX;
+        let ringY = mouseY;
+
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            // Dot follows instantly
+            cursorDot.style.transform = `translate(${mouseX - 3}px, ${mouseY - 3}px)`;
+        });
+
+        function animateCursor() {
+            // Lerp ring
+            ringX += (mouseX - ringX) * 0.15;
+            ringY += (mouseY - ringY) * 0.15;
+            cursorRing.style.transform = `translate(${ringX - 18}px, ${ringY - 18}px)`;
+            requestAnimationFrame(animateCursor);
+        }
+        animateCursor();
+
+        // Hover effect for interactive elements
+        const interactables = document.querySelectorAll('.interactive-el');
+        interactables.forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                cursorRing.style.width = '48px';
+                cursorRing.style.height = '48px';
+                cursorRing.style.backgroundColor = 'rgba(28, 28, 28, 0.05)';
+                cursorDot.style.transform = `translate(${mouseX - 3}px, ${mouseY - 3}px) scale(0)`;
+            });
+            el.addEventListener('mouseleave', () => {
+                cursorRing.style.width = '36px';
+                cursorRing.style.height = '36px';
+                cursorRing.style.backgroundColor = 'transparent';
+                cursorDot.style.transform = `translate(${mouseX - 3}px, ${mouseY - 3}px) scale(1)`;
+            });
+        });
+
+        // --- Clock Logic ---
+        setInterval(() => {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+            document.getElementById('sys-clock').innerText = `${timeStr} / ${dateStr}`;
+        }, 1000);
+
+        // --- GSAP Entrances ---
+        gsap.to('#main-container', { opacity: 1, duration: 1, ease: 'power2.inOut' });
+        
+        gsap.from('.gs-reveal', {
+            y: 30,
+            opacity: 0,
+            duration: 1.2,
+            stagger: 0.15,
+            ease: 'power3.out',
+            delay: 0.2
+        });
+
+        // --- Ink Wash Chart Logic ---
+        const canvas = document.getElementById('inkChart');
+        const ctx = canvas.getContext('2d');
+
+        function resizeChart() {
+            const wrapper = canvas.parentElement;
+            canvas.width = wrapper.offsetWidth;
+            canvas.height = wrapper.offsetHeight;
+        }
+        window.addEventListener('resize', resizeChart);
+        resizeChart();
+
+        // Data points (normalized 0-1) simulating the 12 month BHD revenue 
+        // 28k -> 42.7k. Let's make an organic wave that hits these marks relative to 0-1.
+        const targetData = [0.1, 0.3, 0.2, 0.5, 0.45, 0.75, 0.65, 0.85, 0.7, 0.9, 0.8, 0.95];
+        let currentDrawIndex = 0;
+        let drawProgress = 0;
+        
+        // Let's create an animated stroke effect that slowly reveals the path using GSAP
+        // First compute path points
+        const points = [];
+        
+        function generatePath() {
+            points.length = 0;
+            const step = canvas.width / (targetData.length - 1);
+            for(let i=0; i<targetData.length; i++) {
+                points.push({
+                    x: i * step,
+                    y: canvas.height - (targetData[i] * canvas.height * 0.8) - (canvas.height * 0.1) // 10% padding
+                });
+            }
+        }
+
+        let lineProgress = { val: 0 };
+        
+        // Wait for entrance animation to finish before drawing chart
+        setTimeout(() => {
+            generatePath();
+            gsap.to(lineProgress, {
+                val: 1, 
+                duration: 2.5, 
+                ease: 'power2.inOut',
+                onUpdate: drawChart
+            });
+        }, 1200);
+
+        function drawChart() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (points.length < 2) return;
+
+            // Draw baseline
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height - 10);
+            ctx.lineTo(canvas.width, canvas.height - 10);
+            ctx.strokeStyle = 'rgba(28, 28, 28, 0.1)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Calculate how many segments to draw based on progress
+            const totalLength = points.length - 1;
+            const currentFloatIndex = lineProgress.val * totalLength;
+            const currentIndex = Math.floor(currentFloatIndex);
+            const remainder = currentFloatIndex - currentIndex;
+
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+
+            // Draw completed curves
+            for (let i = 0; i < currentIndex; i++) {
+                drawSmoothCurve(i, i+1, 1);
+            }
+
+            // Draw partial curve for the leading edge
+            if (currentIndex < totalLength) {
+                drawSmoothCurve(currentIndex, currentIndex+1, remainder);
+            }
+
+            // Stroke the path with "Ink"
+            // Variable width based on an artistic ink effect
+            ctx.strokeStyle = '#1c1c1c';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            // Add slight shadow to emulate wet ink thickness
+            ctx.shadowBlur = 4;
+            ctx.shadowColor = 'rgba(28, 28, 28, 0.3)';
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 2;
+            
+            ctx.stroke();
+            
+            // Draw a dot at the current tip
+            if (currentIndex > 0 || remainder > 0) {
+                let tipX, tipY;
+                if (currentIndex === totalLength) {
+                    tipX = points[totalLength].x;
+                    tipY = points[totalLength].y;
+                } else {
+                    const p1 = points[currentIndex];
+                    const p2 = points[currentIndex+1];
+                    // Simple linear interpolation for the tip position on the curve
+                    tipX = p1.x + (p2.x - p1.x) * remainder;
+                    tipY = p1.y + (p2.y - p1.y) * remainder;
+                }
+                
+                ctx.beginPath();
+                ctx.arc(tipX, tipY, 5, 0, Math.PI * 2);
+                ctx.fillStyle = '#ef4444'; // Red seal at the tip to show "now"
+                ctx.fill();
+            }
+            
+            // reset shadow
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = 'transparent';
+        }
+
+        // Helper for bezier curves
+        function drawSmoothCurve(i, nextI, t) {
+            const p1 = points[i];
+            const p2 = points[nextI];
+            const cp1x = (p1.x + p2.x) / 2;
+            const cp1y = p1.y;
+            const cp2x = (p1.x + p2.x) / 2;
+            const cp2y = p2.y;
+            
+            // Since we use global `ctx.bezierCurveTo` which draws the whole curve,
+            // to animate linearly we interpolate the control points to a point `t` along the curve. 
+            // For true ink feel, we'll approximate the partial draw.
+            if (t >= 1) {
+                ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+            } else {
+                // De Casteljau's algorithm simplification for drawing partial bezier
+                const bx = p1.x + (cp1x - p1.x) * t;
+                const by = p1.y + (cp1y - p1.y) * t;
+                const cx = cp1x + (cp2x - cp1x) * t;
+                const cy = cp1y + (cp2y - cp1y) * t;
+                const dx = cp2x + (p2.x - cp2x) * t;
+                const dy = cp2y + (p2.y - cp2y) * t;
+
+                const ex = bx + (cx - bx) * t;
+                const ey = by + (cy - by) * t;
+                const fx = cx + (dx - cx) * t;
+                const fy = cy + (dy - cy) * t;
+
+                const gx = ex + (fx - ex) * t;
+                const gy = ey + (fy - ey) * t;
+
+                ctx.bezierCurveTo(bx, by, ex, ey, gx, gy);
+            }
+        }
+
+    </script>
+</body>
+</html>

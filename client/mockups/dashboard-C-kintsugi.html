@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AsymmFlow Dashboard — Mockup C: Kintsugi Gold</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lora:ital,wght@0,400;0,600;1,400;1,600&family=Outfit:wght@300;400;500;600&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --paper:  #fdfbf7;
+      --ink:    #1c1c1c;
+      --gold:   #c5a059;
+      --gold-light: #e8d5a8;
+      --gold-glow:  rgba(197, 160, 89, 0.12);
+      --stone:  #d4d0c8;
+      --sage:   #4EBC80;
+      --blue:   #66AACC;
+      --coral:  #D75B42;
+      --muted:  #7a7570;
+      --surface: #f5f2ec;
+      --border: rgba(197, 160, 89, 0.2);
+      --transition: 233ms ease;
+    }
+
+    html, body {
+      min-height: 100vh;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'Outfit', sans-serif;
+    }
+
+    body {
+      padding: 40px 48px 64px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    /* ── Page header ── */
+    .page-header {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 48px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .page-header h1 {
+      font-family: 'Cinzel', serif;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+    .page-header span {
+      font-family: 'Lora', serif;
+      font-size: 13px;
+      font-style: italic;
+      color: var(--muted);
+    }
+
+    /* ── ID tags (visible on every component) ── */
+    .component-wrap {
+      position: relative;
+      margin-bottom: 40px;
+    }
+    .id-tag {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      color: #999;
+      background: rgba(255,255,255,0.85);
+      padding: 2px 7px;
+      border-radius: 3px;
+      border: 1px solid #e0dbd4;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    /* ══════════════════════════════════════
+       C1 — ZEN HERO CARD
+    ══════════════════════════════════════ */
+    #hero-C1 {
+      position: relative;
+      text-align: center;
+      padding: 60px 40px;
+      border-radius: 16px;
+      background: radial-gradient(ellipse at 50% 40%, rgba(197,160,89,0.09) 0%, var(--paper) 70%);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    #hero-C1::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 80%, rgba(197,160,89,0.04) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(197,160,89,0.04) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    .hero-amount {
+      font-family: 'Cinzel', serif;
+      font-size: 64px;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 0.02em;
+      line-height: 1;
+      margin-bottom: 14px;
+    }
+    .hero-label {
+      font-family: 'Lora', serif;
+      font-style: italic;
+      font-size: 15px;
+      color: var(--muted);
+      margin-bottom: 28px;
+    }
+    .hero-divider {
+      width: 60%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent 0%, var(--gold) 20%, var(--gold) 80%, transparent 100%);
+      margin: 0 auto 28px;
+    }
+    .hero-stats {
+      display: flex;
+      justify-content: center;
+      gap: 48px;
+    }
+    .hero-stat {
+      font-family: 'Outfit', sans-serif;
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 0.03em;
+    }
+    .hero-stat strong {
+      color: var(--ink);
+      font-weight: 600;
+    }
+    .hero-stat.positive strong { color: var(--sage); }
+    .hero-stat.warn strong { color: var(--coral); }
+
+    /* ══════════════════════════════════════
+       C1 — GAUGE ROW
+    ══════════════════════════════════════ */
+    #gauge-C1 {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 48px 24px;
+      border-radius: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+    .gauge-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      transition: transform var(--transition);
+    }
+    .gauge-item:hover { transform: translateY(-4px); }
+    .gauge-svg-wrap {
+      position: relative;
+      width: 140px;
+      height: 140px;
+    }
+    .gauge-svg-wrap svg {
+      width: 140px;
+      height: 140px;
+      transform: rotate(-90deg);
+    }
+    .gauge-track {
+      fill: none;
+      stroke: var(--stone);
+      stroke-width: 10;
+      stroke-linecap: round;
+      opacity: 0.35;
+    }
+    .gauge-fill {
+      fill: none;
+      stroke-width: 10;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 600ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .gauge-center-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .gauge-pct {
+      font-family: 'Cinzel', serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1;
+    }
+    .gauge-pct-symbol {
+      font-size: 14px;
+      color: var(--muted);
+      font-family: 'Outfit', sans-serif;
+    }
+    .gauge-label {
+      font-family: 'Outfit', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ══════════════════════════════════════
+       C1 — CASH FLOW WATERFALL
+    ══════════════════════════════════════ */
+    #flow-C1 {
+      padding: 48px 40px 40px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: var(--paper);
+    }
+    .flow-inner {
+      display: flex;
+      align-items: flex-end;
+      gap: 0;
+      height: 220px;
+      position: relative;
+    }
+    .flow-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      height: 100%;
+      justify-content: flex-end;
+    }
+    .flow-amount {
+      font-family: 'Courier Prime', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 8px;
+      white-space: nowrap;
+    }
+    .flow-bar {
+      width: 56px;
+      border-radius: 6px 6px 0 0;
+      transition: opacity var(--transition);
+      cursor: default;
+    }
+    .flow-bar:hover { opacity: 0.82; }
+    .flow-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 11px;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 12px;
+    }
+    /* SVG connector lines in waterfall */
+    .flow-svg-overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    /* two-col layout for mosaic + haiku */
+    .two-col {
+      display: grid;
+      grid-template-columns: 45% 55%;
+      gap: 32px;
+    }
+    .panel {
+      padding: 40px 36px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: var(--paper);
+      position: relative;
+    }
+    .panel-title {
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 28px;
+    }
+
+    /* ══════════════════════════════════════
+       C1 — CUSTOMER GRADE MOSAIC
+    ══════════════════════════════════════ */
+    .mosaic-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 24px;
+    }
+    .mosaic-sq {
+      width: 20px;
+      height: 20px;
+      border-radius: 3px;
+      transition: transform var(--transition), box-shadow var(--transition);
+      cursor: default;
+    }
+    .mosaic-sq:hover {
+      transform: scale(1.25);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      z-index: 5;
+    }
+    .mosaic-legend {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .mosaic-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    /* ══════════════════════════════════════
+       C1 — AGING HAIKU
+    ══════════════════════════════════════ */
+    .haiku-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      padding-top: 8px;
+    }
+    .haiku-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .haiku-label {
+      font-family: 'Lora', serif;
+      font-style: italic;
+      font-size: 13px;
+      color: var(--muted);
+      width: 160px;
+      flex-shrink: 0;
+      text-align: right;
+    }
+    .haiku-line-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .haiku-line {
+      height: 3px;
+      border-radius: 2px;
+      transition: opacity var(--transition), height var(--transition);
+      cursor: default;
+    }
+    .haiku-line:hover {
+      height: 5px;
+      opacity: 0.85;
+    }
+    .haiku-amount {
+      font-family: 'Courier Prime', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      color: var(--ink);
+      flex-shrink: 0;
+    }
+
+    /* ══════════════════════════════════════
+       C1 — ACTIVITY SCROLL
+    ══════════════════════════════════════ */
+    #scroll-C1 {
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      padding: 32px 36px;
+      overflow: hidden;
+    }
+    .scroll-label {
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 20px;
+    }
+    .scroll-track {
+      display: flex;
+      gap: 16px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .scroll-track::-webkit-scrollbar { display: none; }
+    .scroll-track { scrollbar-width: none; }
+    .event-card {
+      min-width: 200px;
+      max-width: 200px;
+      background: var(--paper);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--gold);
+      padding: 14px 16px;
+      flex-shrink: 0;
+      transition: box-shadow var(--transition), transform var(--transition);
+      cursor: default;
+    }
+    .event-card:hover {
+      box-shadow: 0 4px 20px rgba(197,160,89,0.15);
+      transform: translateY(-2px);
+    }
+    .event-icon {
+      font-size: 16px;
+      margin-bottom: 6px;
+      display: block;
+      line-height: 1;
+    }
+    .event-time {
+      font-family: 'Outfit', sans-serif;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+    .event-text {
+      font-family: 'Lora', serif;
+      font-size: 12px;
+      color: var(--ink);
+      line-height: 1.45;
+    }
+    .event-text strong {
+      font-weight: 600;
+      color: var(--gold);
+    }
+
+    /* hover glow on all panels */
+    .panel:hover,
+    #hero-C1:hover,
+    #gauge-C1:hover,
+    #flow-C1:hover,
+    #scroll-C1:hover {
+      box-shadow: 0 0 0 1px rgba(197,160,89,0.25), 0 8px 32px rgba(197,160,89,0.08);
+      transition: box-shadow var(--transition);
+    }
+  </style>
+</head>
+<body>
+
+  <header class="page-header">
+    <h1>AsymmFlow</h1>
+    <span>Kintsugi Gold — Mockup C &nbsp;&middot;&nbsp; PH Trading WLL, Bahrain &nbsp;&middot;&nbsp; March 2026</span>
+  </header>
+
+  <!-- ══════════════════════════════════════
+       hero-C1 : Zen Hero Card
+  ══════════════════════════════════════ -->
+  <div class="component-wrap">
+    <span class="id-tag">hero-C1</span>
+    <div id="hero-C1">
+      <div class="hero-amount">BHD 42,750</div>
+      <div class="hero-label">Revenue this month</div>
+      <div class="hero-divider"></div>
+      <div class="hero-stats">
+        <div class="hero-stat positive"><strong>&uarr; 12% growth</strong></div>
+        <div class="hero-stat"><strong>87.5% collected</strong></div>
+        <div class="hero-stat warn"><strong>3 overdue</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       gauge-C1 : Three Circular Gauges
+  ══════════════════════════════════════ -->
+  <div class="component-wrap">
+    <span class="id-tag">gauge-C1</span>
+    <div id="gauge-C1">
+
+      <!-- Gauge 1: Collection Rate 87.5% -->
+      <div class="gauge-item">
+        <div class="gauge-svg-wrap">
+          <svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+            <!-- circumference = 2π × 55 ≈ 345.6 -->
+            <circle class="gauge-track" cx="70" cy="70" r="55" />
+            <circle class="gauge-fill"
+              cx="70" cy="70" r="55"
+              stroke="#c5a059"
+              stroke-dasharray="345.6"
+              stroke-dashoffset="43.2"
+            />
+            <!-- 87.5% → offset = 345.6 × (1 - 0.875) = 43.2 -->
+          </svg>
+          <div class="gauge-center-text">
+            <span class="gauge-pct">87.5<span class="gauge-pct-symbol">%</span></span>
+          </div>
+        </div>
+        <span class="gauge-label">Collection Rate</span>
+      </div>
+
+      <!-- Gauge 2: Pipeline Health 72% -->
+      <div class="gauge-item">
+        <div class="gauge-svg-wrap">
+          <svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+            <circle class="gauge-track" cx="70" cy="70" r="55" />
+            <circle class="gauge-fill"
+              cx="70" cy="70" r="55"
+              stroke="#4EBC80"
+              stroke-dasharray="345.6"
+              stroke-dashoffset="96.8"
+            />
+            <!-- 72% → offset = 345.6 × 0.28 = 96.8 -->
+          </svg>
+          <div class="gauge-center-text">
+            <span class="gauge-pct">72<span class="gauge-pct-symbol">%</span></span>
+          </div>
+        </div>
+        <span class="gauge-label">Pipeline Health</span>
+      </div>
+
+      <!-- Gauge 3: On-Time Delivery 94% -->
+      <div class="gauge-item">
+        <div class="gauge-svg-wrap">
+          <svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+            <circle class="gauge-track" cx="70" cy="70" r="55" />
+            <circle class="gauge-fill"
+              cx="70" cy="70" r="55"
+              stroke="#66AACC"
+              stroke-dasharray="345.6"
+              stroke-dashoffset="20.7"
+            />
+            <!-- 94% → offset = 345.6 × 0.06 = 20.7 -->
+          </svg>
+          <div class="gauge-center-text">
+            <span class="gauge-pct">94<span class="gauge-pct-symbol">%</span></span>
+          </div>
+        </div>
+        <span class="gauge-label">On-Time Delivery</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       flow-C1 : Cash Flow Waterfall
+  ══════════════════════════════════════ -->
+  <div class="component-wrap">
+    <span class="id-tag">flow-C1</span>
+    <div id="flow-C1">
+      <!--
+        Heights scaled: max = 48900 → 200px
+        invoiced   = 48900 → 200px
+        collected  = 40660 → 166px
+        outstanding=  8240 →  34px
+        overdue    =  1850 →   8px (min 16px for visibility)
+      -->
+      <div style="margin-bottom:12px;">
+        <span style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-weight:600;">Cash Flow Waterfall</span>
+      </div>
+
+      <div style="position:relative;display:flex;align-items:flex-end;height:280px;padding:0 24px;">
+
+        <!-- SVG connector lines (drawn behind bars) -->
+        <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;" preserveAspectRatio="none">
+          <!-- Invoiced→Collected connector: top-right of bar1 to top-left of bar2 -->
+          <line x1="25%" y1="13%" x2="37.5%" y2="27.5%" stroke="#c5a059" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.5"/>
+          <!-- Collected→Outstanding -->
+          <line x1="50%" y1="27.5%" x2="62.5%" y2="85%" stroke="#c5a059" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.5"/>
+          <!-- Outstanding→Overdue -->
+          <line x1="75%" y1="85%" x2="87.5%" y2="92%" stroke="#c5a059" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.5"/>
+        </svg>
+
+        <!-- Invoiced -->
+        <div class="flow-col" style="z-index:1;">
+          <div class="flow-amount">BHD 48,900</div>
+          <div class="flow-bar" style="height:200px;background:var(--stone);"></div>
+          <div class="flow-name">Invoiced</div>
+        </div>
+
+        <!-- Collected -->
+        <div class="flow-col" style="z-index:1;">
+          <div class="flow-amount">BHD 40,660</div>
+          <div class="flow-bar" style="height:166px;background:var(--sage);"></div>
+          <div class="flow-name">Collected</div>
+        </div>
+
+        <!-- Outstanding -->
+        <div class="flow-col" style="z-index:1;">
+          <div class="flow-amount">BHD 8,240</div>
+          <div class="flow-bar" style="height:34px;background:var(--gold);"></div>
+          <div class="flow-name">Outstanding</div>
+        </div>
+
+        <!-- Overdue -->
+        <div class="flow-col" style="z-index:1;">
+          <div class="flow-amount">BHD 1,850</div>
+          <div class="flow-bar" style="height:16px;background:var(--coral);"></div>
+          <div class="flow-name">Overdue</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       mosaic-C1 + haiku-C1 side-by-side
+  ══════════════════════════════════════ -->
+  <div class="two-col component-wrap" style="margin-bottom:40px;">
+
+    <!-- mosaic-C1 : Customer Grade Mosaic -->
+    <div class="panel" style="position:relative;">
+      <span class="id-tag">mosaic-C1</span>
+      <div class="panel-title">Customer Grade Mosaic</div>
+      <div style="font-family:'Lora',serif;font-style:italic;font-size:12px;color:var(--muted);margin-bottom:20px;">
+        379 active accounts &nbsp;&middot;&nbsp; each square &approx; 5 customers
+      </div>
+
+      <div class="mosaic-grid">
+        <!-- Grade A: 18 squares (#4EBC80) — ~90 customers -->
+        <div class="mosaic-sq" style="background:#4EBC80;" title="Grade A"></div>
+        <div class="mosaic-sq" style="background:#4EBC80;" title="Grade A"></div>
+        <div class="mosaic-sq" style="background:#4EBC80;" title="Grade A"></div>
+        <div class="mosaic-sq" style="background:#4EBC80;" title="Grade A"></div>
+        <div class="mosaic-sq" style="background:#4EBC80;" title="Grade A"></div>
+        <div class="mosaic-sq" style="background:#4EBC80;" title="Grade A"></div>
+        <div class="mosaic-sq" style="background:#4EBC80;" title="Grade A"></div>
+        <div class="mosaic-sq" style="background:#4EBC80;" title="Grade A"></div>
+        <div class="mosaic-sq" style="background:#4EBC80;" title="Grade A"></div>
+        <div class="mosaic-sq" style="background:#4EBC80;" title="Grade A"></div>
+        <div class="mosaic-sq" style="background:#4EBC80;" title="Grade A"></div>
+        <div class="mosaic-sq" style="background:#4EBC80;" title="Grade A"></div>
+        <div class="mosaic-sq" style="background:#4EBC80;" title="Grade A"></div>
+        <div class="mosaic-sq" style="background:#4EBC80;" title="Grade A"></div>
+        <div class="mosaic-sq" style="background:#4EBC80;" title="Grade A"></div>
+        <div class="mosaic-sq" style="background:#4EBC80;" title="Grade A"></div>
+        <div class="mosaic-sq" style="background:#4EBC80;" title="Grade A"></div>
+        <div class="mosaic-sq" style="background:#4EBC80;" title="Grade A"></div>
+        <!-- Grade B: 28 squares (#66AACC) — ~140 customers -->
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <div class="mosaic-sq" style="background:#66AACC;" title="Grade B"></div>
+        <!-- Grade C: 22 squares (#c5a059) — ~110 customers -->
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <div class="mosaic-sq" style="background:#c5a059;" title="Grade C"></div>
+        <!-- Grade D: 8 squares (#D75B42) — ~39 customers -->
+        <div class="mosaic-sq" style="background:#D75B42;" title="Grade D"></div>
+        <div class="mosaic-sq" style="background:#D75B42;" title="Grade D"></div>
+        <div class="mosaic-sq" style="background:#D75B42;" title="Grade D"></div>
+        <div class="mosaic-sq" style="background:#D75B42;" title="Grade D"></div>
+        <div class="mosaic-sq" style="background:#D75B42;" title="Grade D"></div>
+        <div class="mosaic-sq" style="background:#D75B42;" title="Grade D"></div>
+        <div class="mosaic-sq" style="background:#D75B42;" title="Grade D"></div>
+        <div class="mosaic-sq" style="background:#D75B42;" title="Grade D"></div>
+      </div>
+
+      <div class="mosaic-legend">
+        <div class="mosaic-legend-item">
+          <div class="legend-dot" style="background:#4EBC80;"></div>
+          Grade A &mdash; 90 customers
+        </div>
+        <div class="mosaic-legend-item">
+          <div class="legend-dot" style="background:#66AACC;"></div>
+          Grade B &mdash; 140 customers
+        </div>
+        <div class="mosaic-legend-item">
+          <div class="legend-dot" style="background:#c5a059;"></div>
+          Grade C &mdash; 110 customers
+        </div>
+        <div class="mosaic-legend-item">
+          <div class="legend-dot" style="background:#D75B42;"></div>
+          Grade D &mdash; 39 customers
+        </div>
+      </div>
+    </div>
+
+    <!-- haiku-C1 : Aging Haiku -->
+    <div class="panel" style="position:relative;">
+      <span class="id-tag">haiku-C1</span>
+      <div class="panel-title">AR Aging &mdash; A Haiku</div>
+      <div style="font-family:'Lora',serif;font-style:italic;font-size:12px;color:var(--muted);margin-bottom:28px;">
+        Lines lengthen with time &nbsp;&middot;&nbsp; gold fades to coral
+      </div>
+
+      <div class="haiku-rows">
+        <!-- 0-15d: BHD 4,120 → 85% width, sage -->
+        <div class="haiku-row">
+          <div class="haiku-label">Fresh (0&ndash;15d)</div>
+          <div class="haiku-line-wrap">
+            <div class="haiku-line" style="width:85%;background:linear-gradient(90deg,#4EBC80,#6ecf96);"></div>
+            <div class="haiku-amount">4,120.000</div>
+          </div>
+        </div>
+        <!-- 15-30d: BHD 1,980 → 65% width, sage-gold blend -->
+        <div class="haiku-row">
+          <div class="haiku-label">Settling (15&ndash;30d)</div>
+          <div class="haiku-line-wrap">
+            <div class="haiku-line" style="width:65%;background:linear-gradient(90deg,#7ab87a,#b8a05a);"></div>
+            <div class="haiku-amount">1,980.000</div>
+          </div>
+        </div>
+        <!-- 30-60d: BHD 1,270 → 48% width, gold -->
+        <div class="haiku-row">
+          <div class="haiku-label">Aging (30&ndash;60d)</div>
+          <div class="haiku-line-wrap">
+            <div class="haiku-line" style="width:48%;background:linear-gradient(90deg,#c5a059,#d4a85a);"></div>
+            <div class="haiku-amount">1,270.000</div>
+          </div>
+        </div>
+        <!-- 60-90d: BHD 620 → 28% width, gold-coral blend -->
+        <div class="haiku-row">
+          <div class="haiku-label">Weathered (60&ndash;90d)</div>
+          <div class="haiku-line-wrap">
+            <div class="haiku-line" style="width:28%;background:linear-gradient(90deg,#d4924d,#D75B42);"></div>
+            <div class="haiku-amount">620.000</div>
+          </div>
+        </div>
+        <!-- 90+d: BHD 250 → 14% width, coral -->
+        <div class="haiku-row">
+          <div class="haiku-label">Ancient (90+d)</div>
+          <div class="haiku-line-wrap">
+            <div class="haiku-line" style="width:14%;background:#D75B42;"></div>
+            <div class="haiku-amount">250.000</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- total -->
+      <div style="margin-top:36px;padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:16px;align-items:baseline;">
+        <span style="font-family:'Lora',serif;font-style:italic;font-size:12px;color:var(--muted);">Total outstanding</span>
+        <span style="font-family:'Courier Prime',monospace;font-weight:700;font-size:15px;color:var(--gold);">BHD 8,240.000</span>
+      </div>
+    </div>
+
+  </div><!-- end two-col -->
+
+  <!-- ══════════════════════════════════════
+       scroll-C1 : Activity Scroll
+  ══════════════════════════════════════ -->
+  <div class="component-wrap" style="margin-bottom:0;">
+    <span class="id-tag">scroll-C1</span>
+    <div id="scroll-C1">
+      <div class="scroll-label">Recent Activity</div>
+      <div class="scroll-track">
+
+        <div class="event-card">
+          <span class="event-icon">&#10003;</span>
+          <div class="event-time">Today &nbsp;&middot;&nbsp; 09:14 AM</div>
+          <div class="event-text"><strong>BHD 3,200.000</strong> received from Al Zayani Trading</div>
+        </div>
+
+        <div class="event-card">
+          <span class="event-icon">&#9678;</span>
+          <div class="event-time">Today &nbsp;&middot;&nbsp; 08:47 AM</div>
+          <div class="event-text">Pipeline stage updated: <strong>Gulf Petrochem</strong> &rarr; Quotation Sent</div>
+        </div>
+
+        <div class="event-card">
+          <span class="event-icon">&#9672;</span>
+          <div class="event-time">Yesterday &nbsp;&middot;&nbsp; 04:30 PM</div>
+          <div class="event-text">Purchase Order #PH-2841 raised for <strong>Bahrain Polymers Co.</strong></div>
+        </div>
+
+        <div class="event-card">
+          <span class="event-icon">&#10003;</span>
+          <div class="event-time">Yesterday &nbsp;&middot;&nbsp; 02:15 PM</div>
+          <div class="event-text"><strong>BHD 1,850.000</strong> collected from Manama Steel Works</div>
+        </div>
+
+        <div class="event-card">
+          <span class="event-icon">&#9678;</span>
+          <div class="event-time">Yesterday &nbsp;&middot;&nbsp; 11:00 AM</div>
+          <div class="event-text">New opportunity: <strong>Seef Industrial</strong> &mdash; BHD 12,500 piping contract</div>
+        </div>
+
+        <div class="event-card">
+          <span class="event-icon">&#9672;</span>
+          <div class="event-time">Mar 9 &nbsp;&middot;&nbsp; 06:00 PM</div>
+          <div class="event-text">Invoice INV-0934 issued to <strong>National Oil & Gas</strong> for BHD 4,400.000</div>
+        </div>
+
+        <div class="event-card">
+          <span class="event-icon">&#10003;</span>
+          <div class="event-time">Mar 9 &nbsp;&middot;&nbsp; 03:45 PM</div>
+          <div class="event-text"><strong>BHD 960.000</strong> partial payment from Riffa Valves Ltd</div>
+        </div>
+
+        <div class="event-card">
+          <span class="event-icon">&#9678;</span>
+          <div class="event-time">Mar 9 &nbsp;&middot;&nbsp; 10:30 AM</div>
+          <div class="event-text">Proposal accepted: <strong>Hidd Industrial Area</strong> &mdash; Phase 2 contract</div>
+        </div>
+
+        <div class="event-card">
+          <span class="event-icon">&#9672;</span>
+          <div class="event-time">Mar 8 &nbsp;&middot;&nbsp; 05:00 PM</div>
+          <div class="event-text">Delivery confirmed: <strong>Bahrain Airport Services</strong> &mdash; 14 items</div>
+        </div>
+
+        <div class="event-card">
+          <span class="event-icon">&#10003;</span>
+          <div class="event-time">Mar 8 &nbsp;&middot;&nbsp; 02:00 PM</div>
+          <div class="event-text"><strong>BHD 2,100.000</strong> cleared from Delmon International</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Page footer ── -->
+  <footer style="margin-top:56px;padding-top:20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+    <span style="font-family:'Lora',serif;font-style:italic;font-size:12px;color:var(--muted);">
+      PH Trading WLL &nbsp;&middot;&nbsp; Manama, Kingdom of Bahrain &nbsp;&middot;&nbsp; March 2026
+    </span>
+    <span style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:.15em;color:var(--gold);text-transform:uppercase;">
+      AsymmFlow &mdash; Kintsugi Gold
+    </span>
+  </footer>
+
+</body>
+</html>

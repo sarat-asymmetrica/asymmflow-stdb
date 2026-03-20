@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zen Modals | Wabi-Sabi UI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Zen+Kaku+Gothic+New:wght@300;400;500&display=swap');
+
+        :root {
+            --color-sumi: #1a1a1a;
+            --color-paper: #f4f1ea;
+            --color-gold: #c5a059;
+            --color-indigo: #2c3e50;
+            --color-wood: #8d7b68;
+            --font-heading: 'Cormorant Garamond', serif;
+            --font-body: 'Zen Kaku Gothic New', sans-serif;
+        }
+
+        body {
+            background-color: var(--color-sumi);
+            color: var(--color-paper);
+            font-family: var(--font-body);
+            overflow-x: hidden;
+        }
+
+        h1,
+        h2,
+        h3 {
+            font-family: var(--font-heading);
+        }
+
+        /* Wabi-Sabi Textures */
+        .texture-paper {
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+        }
+
+        .texture-wood {
+            background-image: repeating-linear-gradient(90deg,
+                    rgba(141, 123, 104, 0.1) 0px,
+                    rgba(141, 123, 104, 0.1) 1px,
+                    transparent 1px,
+                    transparent 10px);
+        }
+
+        /* Shoji Screen Modal */
+        .shoji-modal {
+            background-color: var(--color-paper);
+            color: var(--color-sumi);
+            border: 8px solid var(--color-wood);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .shoji-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(var(--color-wood) 2px, transparent 2px),
+                linear-gradient(90deg, var(--color-wood) 2px, transparent 2px);
+            background-size: 100px 100px;
+            opacity: 0.1;
+            pointer-events: none;
+        }
+
+        /* Lantern Modal */
+        .lantern-modal {
+            background: radial-gradient(circle, #fff8e7 0%, #f4f1ea 60%, #e6e0d4 100%);
+            color: var(--color-sumi);
+            box-shadow: 0 0 50px rgba(255, 248, 231, 0.3), 0 0 20px rgba(255, 248, 231, 0.5) inset;
+            border-radius: 4px;
+        }
+
+        /* Button Styles */
+        .btn-zen {
+            border: 1px solid var(--color-paper);
+            padding: 0.75rem 1.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-zen::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            transition: left 0.5s ease;
+        }
+
+        .btn-zen:hover::before {
+            left: 100%;
+        }
+
+        .btn-zen:hover {
+            background: rgba(244, 241, 234, 0.1);
+            letter-spacing: 0.05em;
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center justify-center texture-paper p-8">
+
+    <!-- Navigation -->
+    <nav class="fixed top-8 left-8 z-50">
+        <a href="index.html" class="text-paper opacity-60 hover:opacity-100 transition-opacity flex items-center gap-2">
+            <span>←</span> Back to Atelier
+        </a>
+    </nav>
+
+    <header class="text-center mb-16">
+        <h1 class="text-5xl md:text-7xl mb-4 font-light tracking-wide">Zen Modals</h1>
+        <p class="text-xl opacity-70 italic font-serif">"Open gently, like a sliding door."</p>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-12 w-full max-w-4xl">
+
+        <!-- Shoji Trigger -->
+        <div
+            class="flex flex-col items-center gap-6 p-8 border border-paper/10 rounded-lg hover:border-paper/30 transition-colors">
+            <h2 class="text-3xl font-serif">Shoji Screen</h2>
+            <p class="text-center opacity-60 text-sm">A traditional sliding door interaction. Reveals content with
+                structural elegance.</p>
+            <button onclick="openShoji()" class="btn-zen">Open Shoji</button>
+        </div>
+
+        <!-- Lantern Trigger -->
+        <div
+            class="flex flex-col items-center gap-6 p-8 border border-paper/10 rounded-lg hover:border-paper/30 transition-colors">
+            <h2 class="text-3xl font-serif">Paper Lantern</h2>
+            <p class="text-center opacity-60 text-sm">A warm, glowing expansion. Illuminates information from within.
+            </p>
+            <button onclick="openLantern()" class="btn-zen">Light Lantern</button>
+        </div>
+
+    </div>
+
+    <!-- SHOJI MODAL -->
+    <div id="shoji-overlay" class="modal-overlay fixed inset-0 z-50 hidden flex items-center justify-center opacity-0"
+        onclick="closeShoji(event)">
+        <div id="shoji-content"
+            class="shoji-modal w-full max-w-lg h-[60vh] transform translate-x-full opacity-0 relative overflow-hidden"
+            onclick="event.stopPropagation()">
+            <div class="shoji-grid"></div>
+            <div class="p-12 relative z-10 flex flex-col h-full">
+                <div class="flex justify-between items-start mb-8">
+                    <h3 class="text-4xl font-serif text-wood-800">Configuration</h3>
+                    <button onclick="closeShoji()" class="text-2xl opacity-50 hover:opacity-100">×</button>
+                </div>
+                <div class="space-y-6 flex-grow overflow-y-auto">
+                    <p class="text-lg leading-relaxed opacity-80">
+                        The Shoji screen (障子) divides space without creating a barrier. It allows light to pass while
+                        maintaining privacy.
+                    </p>
+                    <div class="space-y-4">
+                        <div class="border-b border-wood/20 pb-2">
+                            <label class="block text-xs uppercase tracking-widest opacity-50 mb-1">Setting 01</label>
+                            <div class="text-xl">Transparency</div>
+                        </div>
+                        <div class="border-b border-wood/20 pb-2">
+                            <label class="block text-xs uppercase tracking-widest opacity-50 mb-1">Setting 02</label>
+                            <div class="text-xl">Structure</div>
+                        </div>
+                        <div class="border-b border-wood/20 pb-2">
+                            <label class="block text-xs uppercase tracking-widest opacity-50 mb-1">Setting 03</label>
+                            <div class="text-xl">Harmony</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8 flex justify-end">
+                    <button onclick="closeShoji()"
+                        class="px-6 py-2 border border-wood text-wood hover:bg-wood hover:text-paper transition-colors">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LANTERN MODAL -->
+    <div id="lantern-overlay" class="modal-overlay fixed inset-0 z-50 hidden flex items-center justify-center opacity-0"
+        onclick="closeLantern(event)">
+        <div id="lantern-content" class="lantern-modal w-full max-w-md p-10 transform scale-50 opacity-0 relative"
+            onclick="event.stopPropagation()">
+            <div class="absolute -inset-4 bg-gold/20 blur-xl rounded-full opacity-0" id="lantern-glow"></div>
+
+            <div class="relative z-10 text-center">
+                <div
+                    class="w-16 h-16 mx-auto mb-6 border-2 border-sumi/10 rounded-full flex items-center justify-center text-3xl text-gold">
+                    ✦
+                </div>
+                <h3 class="text-3xl font-serif mb-4">Illumination</h3>
+                <p class="opacity-70 mb-8 leading-relaxed">
+                    Like a lantern in the dark, this modal brings focus to a single, important truth. It glows with
+                    warmth and clarity.
+                </p>
+
+                <div class="flex gap-4 justify-center">
+                    <button onclick="closeLantern()"
+                        class="px-6 py-2 opacity-50 hover:opacity-100 transition-opacity">Dim</button>
+                    <button onclick="closeLantern()"
+                        class="px-6 py-2 bg-sumi text-paper hover:bg-opacity-80 transition-colors shadow-lg">Ignite</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // SHOJI LOGIC
+        function openShoji() {
+            const overlay = document.getElementById('shoji-overlay');
+            const content = document.getElementById('shoji-content');
+
+            overlay.classList.remove('hidden');
+
+            // Timeline for sequence
+            const tl = gsap.timeline();
+
+            tl.to(overlay, {
+                opacity: 1,
+                duration: 0.5,
+                ease: "power2.out"
+            })
+                .to(content, {
+                    x: 0,
+                    opacity: 1,
+                    duration: 0.8,
+                    ease: "expo.out"
+                }, "-=0.3");
+        }
+
+        function closeShoji() {
+            const overlay = document.getElementById('shoji-overlay');
+            const content = document.getElementById('shoji-content');
+
+            const tl = gsap.timeline({
+                onComplete: () => overlay.classList.add('hidden')
+            });
+
+            tl.to(content, {
+                x: '100%',
+                opacity: 0,
+                duration: 0.5,
+                ease: "power2.in"
+            })
+                .to(overlay, {
+                    opacity: 0,
+                    duration: 0.3
+                }, "-=0.2");
+        }
+
+        // LANTERN LOGIC
+        function openLantern() {
+            const overlay = document.getElementById('lantern-overlay');
+            const content = document.getElementById('lantern-content');
+            const glow = document.getElementById('lantern-glow');
+
+            overlay.classList.remove('hidden');
+
+            const tl = gsap.timeline();
+
+            tl.to(overlay, {
+                opacity: 1,
+                duration: 0.6,
+                ease: "power2.out"
+            })
+                .to(content, {
+                    scale: 1,
+                    opacity: 1,
+                    duration: 1.2,
+                    ease: "elastic.out(1, 0.7)"
+                }, "-=0.4")
+                .to(glow, {
+                    opacity: 1,
+                    duration: 1.5,
+                    ease: "sine.inOut",
+                    yoyo: true,
+                    repeat: -1
+                }, "-=1.0");
+        }
+
+        function closeLantern() {
+            const overlay = document.getElementById('lantern-overlay');
+            const content = document.getElementById('lantern-content');
+
+            const tl = gsap.timeline({
+                onComplete: () => overlay.classList.add('hidden')
+            });
+
+            tl.to(content, {
+                scale: 0.8,
+                opacity: 0,
+                duration: 0.4,
+                ease: "back.in(1.7)"
+            })
+                .to(overlay, {
+                    opacity: 0,
+                    duration: 0.3
+                }, "-=0.2");
+        }
+    </script>
+</body>
+
+</html>

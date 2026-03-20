@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asymmetrica | Real World Wabi-Sabi</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.7.1/gsap.min.js"></script>
+    <style>
+        /* 
+         * REAL WORLD WABI-SABI THEME
+         * The Brutal Reality of Business meets the Serenity of Zen.
+         */
+        :root {
+            --color-paper: #fdfbf7;
+            --color-ink: #1c1c1c;
+            --color-ink-light: #57534e;
+            --color-danger: #ef4444;
+            /* Parched / Burn */
+            --color-safe: #15803d;
+            /* Nourished / Flow */
+            --color-gold: #fbbf24;
+            /* Opportunity / Kintsugi */
+            --color-abb: #475569;
+            /* The Heavy Stone (Competition) */
+
+            --font-serif: 'Georgia', 'Times New Roman', serif;
+            --font-mono: 'Courier Prime', monospace;
+        }
+
+        body {
+            margin: 0;
+            padding: 40px;
+            background-color: var(--color-paper);
+            color: var(--color-ink);
+            font-family: var(--font-serif);
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+        }
+
+        .nav-back {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            text-decoration: none;
+            color: var(--color-ink-light);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            opacity: 0.5;
+            transition: opacity 0.3s;
+            z-index: 100;
+        }
+
+        .nav-back:hover {
+            opacity: 1;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 40px;
+            align-items: start;
+        }
+
+        header {
+            grid-column: 1 / -1;
+            margin-bottom: 60px;
+            text-align: center;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            padding-bottom: 40px;
+        }
+
+        h1 {
+            font-weight: normal;
+            font-size: 42px;
+            margin: 0 0 10px 0;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--color-ink-light);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* COMPONENT CARDS */
+        .component-card {
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            padding: 30px;
+            min-height: 400px;
+            position: relative;
+            transition: all 0.5s ease;
+        }
+
+        .component-card:hover {
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+
+        .card-title {
+            font-family: var(--font-mono);
+            font-size: 14px;
+            text-transform: uppercase;
+            border-bottom: 2px solid var(--color-ink);
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* 1. SURVIVAL GARDEN (Cash Flow) */
+        #garden-canvas {
+            width: 100%;
+            height: 250px;
+            margin-bottom: 20px;
+        }
+
+        .metric-big {
+            font-size: 36px;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--color-ink-light);
+            text-transform: uppercase;
+        }
+
+        /* 2. OPPORTUNITY MANDALA (Deal Scoring) */
+        #mandala-canvas {
+            width: 100%;
+            height: 250px;
+            margin-bottom: 20px;
+        }
+
+        .deal-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .toggle-btn {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            padding: 5px 10px;
+            border: 1px solid var(--color-ink-light);
+            background: transparent;
+            cursor: pointer;
+            opacity: 0.6;
+        }
+
+        .toggle-btn.active {
+            background: var(--color-ink);
+            color: var(--color-paper);
+            opacity: 1;
+        }
+
+        /* 3. SERVICE RHYTHM (MRR) */
+        #rhythm-canvas {
+            width: 100%;
+            height: 250px;
+            margin-bottom: 20px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: var(--color-ink);
+            color: var(--color-paper);
+            font-family: var(--font-mono);
+            font-size: 10px;
+            border-radius: 2px;
+        }
+
+        .status-badge.danger {
+            background: var(--color-danger);
+        }
+
+        .status-badge.safe {
+            background: var(--color-safe);
+        }
+    </style>
+</head>
+
+<body>
+
+    <a href="index.html" class="nav-back">← ATELIER</a>
+
+    <div class="container">
+        <header>
+            <h1>Business Reality</h1>
+            <div class="subtitle">Survival • Opportunity • Sustainability</div>
+        </header>
+
+        <!-- 1. SURVIVAL GARDEN -->
+        <div class="component-card">
+            <div class="card-title">
+                <span>Survival Garden</span>
+                <span>RUNWAY</span>
+            </div>
+            <canvas id="garden-canvas"></canvas>
+
+            <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+                <div>
+                    <span class="metric-big" id="runway-val">6.2</span>
+                    <span class="metric-label">Months Remaining</span>
+                </div>
+                <div style="text-align: right;">
+                    <span class="metric-label" style="display:block;">Burn Rate</span>
+                    <span style="font-family: var(--font-mono);">11,000 BHD</span>
+                </div>
+            </div>
+            <p style="font-size: 12px; margin-top: 20px; color: var(--color-ink-light); line-height: 1.5;">
+                Water level represents cash. <br>
+                <span style="color: var(--color-danger);">Red</span> = Parched (< 2 months). <br>
+                    <span style="color: var(--color-safe);">Green</span> = Flowing (> 6 months).
+            </p>
+        </div>
+
+        <!-- 2. OPPORTUNITY MANDALA -->
+        <div class="component-card">
+            <div class="card-title">
+                <span>Opportunity Mandala</span>
+                <span>SCORING</span>
+            </div>
+            <canvas id="mandala-canvas"></canvas>
+
+            <div style="text-align: center;">
+                <span class="metric-big" id="win-prob">45%</span>
+                <span class="metric-label">Win Probability</span>
+            </div>
+
+            <div class="deal-controls">
+                <button class="toggle-btn" id="btn-abb" onclick="toggleFactor('abb')">ABB Competing</button>
+                <button class="toggle-btn" id="btn-emergency" onclick="toggleFactor('emergency')">Emergency</button>
+                <button class="toggle-btn" id="btn-grade-a" onclick="toggleFactor('gradeA')">Grade A Cust.</button>
+            </div>
+        </div>
+
+        <!-- 3. SERVICE RHYTHM -->
+        <div class="component-card">
+            <div class="card-title">
+                <span>Service Rhythm</span>
+                <span>SUSTAINABILITY</span>
+            </div>
+            <canvas id="rhythm-canvas"></canvas>
+
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <span class="metric-big" id="sustain-ratio">0.27</span>
+                    <span class="metric-label">Ratio (MRR/Cost)</span>
+                </div>
+                <span class="status-badge danger" id="sustain-status">CRITICAL</span>
+            </div>
+
+            <input type="range" min="4000" max="15000" value="4000" step="1000" style="width: 100%; margin-top: 20px;"
+                oninput="updateMRR(this.value)">
+            <div style="text-align: center; font-family: var(--font-mono); font-size: 10px; margin-top: 5px;">
+                Simulate MRR Growth: <span id="mrr-display">4,000</span> BHD
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- 1. SURVIVAL GARDEN (Water Level) ---
+        const gardenCanvas = document.getElementById('garden-canvas');
+        const gCtx = gardenCanvas.getContext('2d');
+
+        let runwayMonths = 6.2; // From doc: 6-8 months
+        let waterLevel = 0.6; // 0 to 1
+        let waveOffset = 0;
+
+        function resizeGarden() {
+            gardenCanvas.width = gardenCanvas.offsetWidth;
+            gardenCanvas.height = gardenCanvas.offsetHeight;
+        }
+        window.addEventListener('resize', resizeGarden);
+        resizeGarden();
+
+        function drawGarden() {
+            gCtx.clearRect(0, 0, gardenCanvas.width, gardenCanvas.height);
+
+            const w = gardenCanvas.width;
+            const h = gardenCanvas.height;
+
+            // Determine color based on runway
+            let waterColor = '#15803d'; // Safe
+            if (runwayMonths < 2) waterColor = '#ef4444'; // Danger
+            else if (runwayMonths < 4) waterColor = '#fbbf24'; // Warning
+
+            // Draw Water
+            gCtx.fillStyle = waterColor;
+            gCtx.globalAlpha = 0.6;
+
+            gCtx.beginPath();
+            gCtx.moveTo(0, h);
+
+            // Wave simulation
+            for (let x = 0; x <= w; x += 10) {
+                const y = h * (1 - waterLevel) + Math.sin(x * 0.02 + waveOffset) * 5;
+                gCtx.lineTo(x, y);
+            }
+
+            gCtx.lineTo(w, h);
+            gCtx.closePath();
+            gCtx.fill();
+
+            // Draw "Stones" (Expenses) at the bottom
+            gCtx.fillStyle = '#475569';
+            gCtx.globalAlpha = 1;
+            gCtx.beginPath();
+            gCtx.arc(w * 0.2, h - 10, 20, 0, Math.PI * 2);
+            gCtx.arc(w * 0.5, h - 15, 25, 0, Math.PI * 2);
+            gCtx.arc(w * 0.8, h - 8, 15, 0, Math.PI * 2);
+            gCtx.fill();
+
+            waveOffset += 0.05;
+            requestAnimationFrame(drawGarden);
+        }
+        drawGarden();
+
+
+        // --- 2. OPPORTUNITY MANDALA (Geometry) ---
+        const mandalaCanvas = document.getElementById('mandala-canvas');
+        const mCtx = mandalaCanvas.getContext('2d');
+
+        let dealFactors = {
+            abb: false,
+            emergency: false,
+            gradeA: false
+        };
+
+        function resizeMandala() {
+            mandalaCanvas.width = mandalaCanvas.offsetWidth;
+            mandalaCanvas.height = mandalaCanvas.offsetHeight;
+        }
+        window.addEventListener('resize', resizeMandala);
+        resizeMandala();
+
+        function toggleFactor(factor) {
+            dealFactors[factor] = !dealFactors[factor];
+
+            // Update UI buttons
+            const btnId = 'btn-' + factor.replace('gradeA', 'grade-a');
+            document.getElementById(btnId).classList.toggle('active');
+
+            calculateWinProb();
+        }
+
+        function calculateWinProb() {
+            let prob = 0.5; // Base
+
+            if (dealFactors.abb) prob *= 0.3; // Heavy penalty
+            if (dealFactors.emergency) prob *= 1.8; // Huge boost
+            if (dealFactors.gradeA) prob *= 1.5; // Good boost
+
+            if (prob > 0.95) prob = 0.95;
+
+            document.getElementById('win-prob').innerText = Math.round(prob * 100) + '%';
+
+            // Animate transition
+            gsap.to(mandalaState, {
+                radius: 30 + (prob * 60), // Size grows with probability
+                rotationSpeed: 0.01 + (prob * 0.05), // Speed increases
+                duration: 1
+            });
+        }
+
+        let mandalaState = { radius: 50, rotation: 0, rotationSpeed: 0.02 };
+
+        function drawMandala() {
+            mCtx.clearRect(0, 0, mandalaCanvas.width, mandalaCanvas.height);
+
+            const cx = mandalaCanvas.width / 2;
+            const cy = mandalaCanvas.height / 2;
+
+            mCtx.save();
+            mCtx.translate(cx, cy);
+            mCtx.rotate(mandalaState.rotation);
+
+            // 1. Central Enso (The Deal)
+            mCtx.beginPath();
+            mCtx.arc(0, 0, mandalaState.radius, 0, Math.PI * 2);
+            mCtx.strokeStyle = '#1c1c1c';
+            mCtx.lineWidth = 2;
+            mCtx.stroke();
+
+            // 2. ABB Stone (Blocker)
+            if (dealFactors.abb) {
+                mCtx.fillStyle = '#475569';
+                mCtx.fillRect(-20, -20, 40, 40); // Heavy square in middle
+            }
+
+            // 3. Emergency (Glow)
+            if (dealFactors.emergency) {
+                mCtx.shadowBlur = 20;
+                mCtx.shadowColor = '#ef4444';
+                mCtx.strokeStyle = '#ef4444';
+                mCtx.stroke(); // Redraw stroke with glow
+                mCtx.shadowBlur = 0;
+            }
+
+            // 4. Grade A (Gold Accents)
+            if (dealFactors.gradeA) {
+                mCtx.strokeStyle = '#fbbf24';
+                mCtx.lineWidth = 4;
+                mCtx.setLineDash([5, 5]);
+                mCtx.beginPath();
+                mCtx.arc(0, 0, mandalaState.radius + 10, 0, Math.PI * 2);
+                mCtx.stroke();
+                mCtx.setLineDash([]);
+            }
+
+            mCtx.restore();
+
+            mandalaState.rotation += mandalaState.rotationSpeed;
+            requestAnimationFrame(drawMandala);
+        }
+        drawMandala();
+
+
+        // --- 3. SERVICE RHYTHM (Heartbeat) ---
+        const rhythmCanvas = document.getElementById('rhythm-canvas');
+        const rCtx = rhythmCanvas.getContext('2d');
+
+        let mrr = 4000;
+        const costs = 15000;
+        let pulseTime = 0;
+
+        function resizeRhythm() {
+            rhythmCanvas.width = rhythmCanvas.offsetWidth;
+            rhythmCanvas.height = rhythmCanvas.offsetHeight;
+        }
+        window.addEventListener('resize', resizeRhythm);
+        resizeRhythm();
+
+        function updateMRR(val) {
+            mrr = parseInt(val);
+            document.getElementById('mrr-display').innerText = mrr.toLocaleString();
+
+            const ratio = mrr / costs;
+            document.getElementById('sustain-ratio').innerText = ratio.toFixed(2);
+
+            const badge = document.getElementById('sustain-status');
+            if (ratio >= 1.0) {
+                badge.innerText = "SUSTAINABLE";
+                badge.className = "status-badge safe";
+            } else {
+                badge.innerText = "CRITICAL";
+                badge.className = "status-badge danger";
+            }
+        }
+
+        function drawRhythm() {
+            // Fade effect for trail
+            rCtx.fillStyle = 'rgba(253, 251, 247, 0.1)';
+            rCtx.fillRect(0, 0, rhythmCanvas.width, rhythmCanvas.height);
+
+            const cx = rhythmCanvas.width / 2;
+            const cy = rhythmCanvas.height / 2;
+            const ratio = mrr / costs; // 0.27 to 1.0
+
+            // Pulse logic
+            // Higher ratio = Stronger, steadier pulse
+            // Low ratio = Weak, erratic pulse
+
+            const baseRadius = 40;
+            const pulseAmp = 10 + (ratio * 20);
+            const freq = 0.05 + (ratio * 0.05);
+
+            const r = baseRadius + Math.sin(pulseTime) * pulseAmp;
+
+            rCtx.beginPath();
+            rCtx.arc(cx, cy, r, 0, Math.PI * 2);
+
+            if (ratio >= 1.0) {
+                rCtx.strokeStyle = '#15803d'; // Green
+                rCtx.lineWidth = 3;
+            } else {
+                rCtx.strokeStyle = '#ef4444'; // Red
+                rCtx.lineWidth = 1 + (ratio * 2); // Thinner when weak
+            }
+
+            rCtx.stroke();
+
+            // Inner fill
+            rCtx.fillStyle = rCtx.strokeStyle;
+            rCtx.globalAlpha = 0.1;
+            rCtx.fill();
+            rCtx.globalAlpha = 1;
+
+            pulseTime += freq;
+            requestAnimationFrame(drawRhythm);
+        }
+        drawRhythm();
+
+    </script>
+</body>
+
+</html>

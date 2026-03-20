@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asymmetrica | Wabi-Sabi Data</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.7.1/gsap.min.js"></script>
+    <style>
+        /* 
+         * WABI-SABI DATA THEME
+         * Ink, Ma (Space), Imperfection
+         */
+        :root {
+            --color-paper: #fdfbf7;
+            --color-ink: #1c1c1c;
+            --color-ink-light: #57534e;
+            --color-ink-wash: #e5e5e5;
+            --color-accent: #ef4444;
+            /* Stamp Red */
+
+            --font-serif: 'Georgia', 'Times New Roman', serif;
+            --font-mono: 'Courier Prime', monospace;
+
+            --space-unit: 8px;
+        }
+
+        body {
+            margin: 0;
+            padding: 40px;
+            background-color: var(--color-paper);
+            color: var(--color-ink);
+            font-family: var(--font-serif);
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+        }
+
+        header {
+            grid-column: 1 / -1;
+            margin-bottom: 40px;
+            border-bottom: 2px solid var(--color-ink);
+            padding-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        h1 {
+            font-weight: normal;
+            font-size: 36px;
+            margin: 0;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--color-ink-light);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* INK WASH CHART */
+        .chart-container {
+            position: relative;
+            height: 400px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ZEN GRID */
+        .zen-grid {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .zen-grid th {
+            text-align: left;
+            padding: 15px 10px;
+            border-bottom: 1px solid var(--color-ink);
+            font-weight: normal;
+            color: var(--color-ink-light);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .zen-grid td {
+            padding: 15px 10px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .zen-grid tr:hover td {
+            background-color: rgba(0, 0, 0, 0.03);
+            color: var(--color-ink);
+            padding-left: 15px;
+            /* Gentle shift */
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background-color: var(--color-ink-light);
+        }
+
+        .status-active {
+            background-color: var(--color-accent);
+        }
+
+        .status-flow {
+            background-color: var(--color-ink);
+        }
+
+        /* ENSO PROGRESS */
+        .enso-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            position: relative;
+        }
+
+        .enso-label {
+            position: absolute;
+            text-align: center;
+        }
+
+        .enso-value {
+            font-size: 32px;
+            display: block;
+        }
+
+        .enso-text {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--color-ink-light);
+        }
+
+        /* Navigation */
+        .nav-back {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            text-decoration: none;
+            color: var(--color-ink-light);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            opacity: 0.5;
+            transition: opacity 0.3s;
+        }
+
+        .nav-back:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+
+    <a href="index.html" class="nav-back">← ATELIER</a>
+
+    <div class="container">
+        <header>
+            <div>
+                <h1>Data as Ink</h1>
+                <div class="subtitle">Imperfect • Impermanent • Incomplete</div>
+            </div>
+            <div style="font-family: var(--font-mono); font-size: 10px;">
+                SESSION: <span id="clock">--:--</span>
+            </div>
+        </header>
+
+        <!-- LEFT COLUMN: Chart -->
+        <div>
+            <div class="subtitle" style="margin-bottom: 20px;">MARKET FLOW (INK WASH)</div>
+            <div class="chart-container">
+                <canvas id="inkChart"></canvas>
+            </div>
+            <p style="font-size: 14px; line-height: 1.6; color: var(--color-ink-light); margin-top: 20px;">
+                The line is not a vector; it is a brush stroke. It breathes.
+                The "fade" represents the impermanence of past data.
+                Only the present moment (the tip) is fully saturated.
+            </p>
+        </div>
+
+        <!-- RIGHT COLUMN: Grid & Enso -->
+        <div>
+            <div class="subtitle" style="margin-bottom: 20px;">HOLDINGS (ZEN GRID)</div>
+            <table class="zen-grid">
+                <thead>
+                    <tr>
+                        <th>Asset</th>
+                        <th>Flow</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="status-dot status-active"></span>BTC-USD</td>
+                        <td>Turbulent</td>
+                        <td>$94,320</td>
+                    </tr>
+                    <tr>
+                        <td><span class="status-dot status-flow"></span>ETH-USD</td>
+                        <td>Laminar</td>
+                        <td>$3,450</td>
+                    </tr>
+                    <tr>
+                        <td><span class="status-dot"></span>SOL-USD</td>
+                        <td>Static</td>
+                        <td>$145</td>
+                    </tr>
+                    <tr>
+                        <td><span class="status-dot status-flow"></span>XRP-USD</td>
+                        <td>Laminar</td>
+                        <td>$0.62</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="subtitle" style="margin-top: 60px; margin-bottom: 20px;">SYSTEM HARMONY (ENSO)</div>
+            <div class="enso-container">
+                <canvas id="ensoCanvas" width="200" height="200"></canvas>
+                <div class="enso-label">
+                    <span class="enso-value">87%</span>
+                    <span class="enso-text">Harmony</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CLOCK ---
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }, 1000);
+
+
+        // --- INK CHART ---
+        const canvas = document.getElementById('inkChart');
+        const ctx = canvas.getContext('2d');
+
+        // Resize canvas
+        function resize() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Data simulation
+        const dataPoints = [];
+        const maxPoints = 50;
+        let t = 0;
+
+        function animateChart() {
+            // Generate data
+            t += 0.05;
+            const value = Math.sin(t) * 0.3 + Math.sin(t * 0.5) * 0.2 + Math.random() * 0.1 + 0.5; // 0-1 range
+
+            dataPoints.push(value);
+            if (dataPoints.length > maxPoints) dataPoints.shift();
+
+            // Clear
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw "Ink" Line
+            if (dataPoints.length > 1) {
+                ctx.beginPath();
+
+                // We draw segments individually to control opacity (fade out history)
+                for (let i = 0; i < dataPoints.length - 1; i++) {
+                    const x1 = (i / (maxPoints - 1)) * canvas.width;
+                    const y1 = (1 - dataPoints[i]) * canvas.height * 0.8 + canvas.height * 0.1; // Padding
+
+                    const x2 = ((i + 1) / (maxPoints - 1)) * canvas.width;
+                    const y2 = (1 - dataPoints[i + 1]) * canvas.height * 0.8 + canvas.height * 0.1;
+
+                    // Control points for bezier (smooth curve)
+                    const cp1x = (x1 + x2) / 2;
+                    const cp1y = y1;
+                    const cp2x = (x1 + x2) / 2;
+                    const cp2y = y2;
+
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2);
+
+                    // Opacity based on recency (Wabi-Sabi impermanence)
+                    const alpha = (i / maxPoints);
+                    ctx.strokeStyle = `rgba(28, 28, 28, ${alpha})`;
+
+                    // Variable width (Brush pressure simulation)
+                    // Higher slope = thinner line (faster stroke), Lower slope = thicker (slower)
+                    const slope = Math.abs(y2 - y1);
+                    const width = Math.max(1, 5 - slope * 0.1);
+                    ctx.lineWidth = width;
+
+                    ctx.lineCap = 'round';
+                    ctx.stroke();
+                }
+            }
+
+            requestAnimationFrame(animateChart);
+        }
+        animateChart();
+
+
+        // --- ENSO PROGRESS ---
+        const ensoCanvas = document.getElementById('ensoCanvas');
+        const ensoCtx = ensoCanvas.getContext('2d');
+
+        function drawEnso() {
+            const w = ensoCanvas.width;
+            const h = ensoCanvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const r = 70;
+
+            ensoCtx.clearRect(0, 0, w, h);
+
+            // Draw incomplete circle (Enso)
+            ensoCtx.beginPath();
+            // Start at random angle, end not quite closing the loop
+            ensoCtx.arc(cx, cy, r, 0.2, 2 * Math.PI - 0.5);
+
+            ensoCtx.strokeStyle = '#1c1c1c';
+            ensoCtx.lineWidth = 8;
+            ensoCtx.lineCap = 'round';
+
+            // Add some "roughness" to simulate brush
+            ensoCtx.shadowBlur = 2;
+            ensoCtx.shadowColor = '#57534e';
+
+            ensoCtx.stroke();
+
+            // Reset shadow
+            ensoCtx.shadowBlur = 0;
+        }
+        drawEnso();
+
+    </script>
+</body>
+
+</html>

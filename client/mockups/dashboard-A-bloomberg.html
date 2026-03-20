@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AsymmFlow Dashboard — Mockup A: Bloomberg</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Outfit:wght@300;400;500;600&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --paper:   #fdfbf7;
+      --ink:     #1c1c1c;
+      --ink-mid: #555555;
+      --ink-dim: #888888;
+      --ink-faint: #c0bdb7;
+      --gold:    #c5a059;
+      --gold-lt: rgba(197, 160, 89, 0.08);
+      --gold-mid: rgba(197, 160, 89, 0.18);
+      --border:  #e4e1db;
+      --card-bg: #ffffff;
+      --row-alt: #f9f7f4;
+      --green:   #4EBC80;
+      --blue:    #66AACC;
+      --amber:   #c5a059;
+      --orange:  #D75B42;
+      --red:     #cc3333;
+      --tag-bg:  #e8e6e1;
+      --tag-ink: #888888;
+    }
+
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'Outfit', sans-serif;
+      font-size: 13px;
+      line-height: 1.4;
+      min-width: 1200px;
+      padding: 12px 16px 24px;
+    }
+
+    /* ——— ID TAG ——— */
+    .id-tag {
+      display: inline-block;
+      font-family: 'Outfit', sans-serif;
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      color: var(--tag-ink);
+      background: var(--tag-bg);
+      border-radius: 3px;
+      padding: 1px 5px;
+      position: absolute;
+      top: 6px;
+      left: 8px;
+      z-index: 10;
+      pointer-events: none;
+      line-height: 1.6;
+    }
+
+    /* ——— CARD BASE ——— */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ——— PAGE HEADER ——— */
+    .page-header {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .page-header h1 {
+      font-family: 'Cinzel', serif;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--ink);
+    }
+    .page-header .subtitle {
+      font-size: 11px;
+      color: var(--ink-dim);
+      font-family: 'Outfit', sans-serif;
+    }
+    .page-header .live-dot {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      color: var(--green);
+      font-weight: 500;
+      margin-left: auto;
+    }
+    .page-header .live-dot::before {
+      content: '';
+      display: block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    /* ——— ROW LAYOUTS ——— */
+    .row { display: flex; gap: 10px; margin-bottom: 10px; }
+
+    /* ——— KPI STRIP ——— */
+    #kpi-A1 {
+      display: flex;
+      gap: 0;
+      padding: 0;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .kpi-item {
+      flex: 1;
+      padding: 10px 14px 10px;
+      border-right: 1px solid var(--border);
+      transition: background 0.15s;
+      cursor: default;
+    }
+    .kpi-item:last-child { border-right: none; }
+    .kpi-item:hover { background: var(--row-alt); }
+    .kpi-label {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-bottom: 4px;
+    }
+    .kpi-value {
+      font-family: 'Courier Prime', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .kpi-value .currency {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--ink-mid);
+      margin-right: 2px;
+    }
+    .kpi-trend {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      font-family: 'Courier Prime', monospace;
+      font-size: 10px;
+    }
+    .trend-up   { color: var(--green); }
+    .trend-down { color: var(--red); }
+    .trend-up .arrow::before   { content: '▲'; font-size: 8px; }
+    .trend-down .arrow::before { content: '▼'; font-size: 8px; }
+    .kpi-item.overdue .kpi-value { color: var(--red); }
+    .kpi-item.pipeline .kpi-value { color: var(--gold); }
+
+    /* ——— SPARKLINE CHART ——— */
+    #chart-A1 {
+      flex: 60;
+      padding: 0;
+    }
+    .chart-inner {
+      padding: 28px 16px 10px;
+    }
+    .chart-title {
+      font-family: 'Cinzel', serif;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-mid);
+      margin-bottom: 6px;
+    }
+    .sparkline-wrap {
+      position: relative;
+      height: 110px;
+    }
+    .sparkline-wrap svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+    .x-axis-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 4px;
+      padding: 0 2px;
+    }
+    .x-axis-labels span {
+      font-family: 'Courier Prime', monospace;
+      font-size: 9px;
+      color: var(--ink-dim);
+      text-align: center;
+      flex: 1;
+    }
+    .chart-y-label {
+      font-family: 'Courier Prime', monospace;
+      font-size: 9px;
+      color: var(--ink-faint);
+    }
+    .chart-summary {
+      display: flex;
+      gap: 16px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .chart-summary-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .chart-summary-item .cs-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--ink-dim);
+      font-weight: 600;
+    }
+    .chart-summary-item .cs-val {
+      font-family: 'Courier Prime', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    /* ——— AR AGING ——— */
+    #aging-A1 {
+      flex: 40;
+    }
+    .aging-inner {
+      padding: 28px 14px 10px;
+    }
+    .aging-title {
+      font-family: 'Cinzel', serif;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-mid);
+      margin-bottom: 10px;
+    }
+    .aging-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 10px;
+      margin-bottom: 10px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9px;
+      color: var(--ink-dim);
+    }
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .aging-row {
+      margin-bottom: 9px;
+    }
+    .aging-row-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 3px;
+    }
+    .aging-customer {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--ink);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 160px;
+    }
+    .aging-total {
+      font-family: 'Courier Prime', monospace;
+      font-size: 10px;
+      color: var(--ink-mid);
+    }
+    .aging-bar {
+      display: flex;
+      height: 12px;
+      border-radius: 3px;
+      overflow: hidden;
+      gap: 1px;
+    }
+    .aging-seg {
+      height: 100%;
+      min-width: 2px;
+      transition: opacity 0.15s;
+    }
+    .aging-seg:hover { opacity: 0.8; }
+
+    /* ——— TABLE ——— */
+    #table-A1 {
+      flex: 65;
+    }
+    .table-inner {
+      padding: 28px 0 0;
+    }
+    .table-header-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 0 14px 8px;
+    }
+    .table-title {
+      font-family: 'Cinzel', serif;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-mid);
+    }
+    .table-meta {
+      font-size: 9px;
+      color: var(--ink-dim);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    thead tr {
+      background: #f4f2ee;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    thead th {
+      padding: 5px 10px;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      text-align: left;
+      white-space: nowrap;
+    }
+    thead th.num { text-align: right; }
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.12s;
+      cursor: default;
+    }
+    tbody tr:nth-child(odd)  { background: var(--card-bg); }
+    tbody tr:nth-child(even) { background: var(--row-alt); }
+    tbody tr:hover           { background: var(--gold-mid); }
+    tbody td {
+      padding: 6px 10px;
+      font-size: 11px;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+    tbody td.num {
+      text-align: right;
+      font-family: 'Courier Prime', monospace;
+      font-size: 11px;
+    }
+    tbody td.idx {
+      font-family: 'Courier Prime', monospace;
+      font-size: 10px;
+      color: var(--ink-dim);
+      width: 24px;
+    }
+    .grade-badge {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 1px 6px;
+      border-radius: 3px;
+      color: #fff;
+      font-family: 'Outfit', sans-serif;
+    }
+    .grade-A { background: var(--green); }
+    .grade-B { background: var(--blue); }
+    .grade-C { background: var(--amber); }
+    .grade-D { background: var(--orange); }
+    .pct-bar-wrap {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      justify-content: flex-end;
+    }
+    .pct-bar-bg {
+      width: 40px;
+      height: 5px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .pct-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+    }
+
+    /* ——— ACTIVITY FEED ——— */
+    #feed-A1 {
+      flex: 35;
+    }
+    .feed-inner {
+      padding: 28px 0 0;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    .feed-title-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 0 14px 8px;
+    }
+    .feed-title {
+      font-family: 'Cinzel', serif;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-mid);
+    }
+    .feed-count {
+      font-size: 9px;
+      color: var(--ink-dim);
+    }
+    .feed-scroll {
+      overflow-y: auto;
+      flex: 1;
+      border-top: 1px solid var(--border);
+    }
+    .feed-scroll::-webkit-scrollbar { width: 4px; }
+    .feed-scroll::-webkit-scrollbar-track { background: transparent; }
+    .feed-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .feed-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 7px 14px;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.12s;
+      cursor: default;
+    }
+    .feed-item:hover { background: var(--row-alt); }
+    .feed-time {
+      font-family: 'Courier Prime', monospace;
+      font-size: 10px;
+      color: var(--ink-dim);
+      flex-shrink: 0;
+      padding-top: 1px;
+      width: 36px;
+    }
+    .feed-icon {
+      font-size: 11px;
+      flex-shrink: 0;
+      padding-top: 1px;
+      width: 16px;
+      text-align: center;
+    }
+    .feed-text {
+      font-size: 11px;
+      color: var(--ink);
+      line-height: 1.35;
+    }
+    .feed-text .amount {
+      font-family: 'Courier Prime', monospace;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .feed-text .company {
+      color: var(--gold);
+      font-weight: 500;
+    }
+    .feed-item.payment  .feed-icon { color: var(--green); }
+    .feed-item.invoice  .feed-icon { color: var(--blue); }
+    .feed-item.overdue  .feed-icon { color: var(--red); }
+    .feed-item.order    .feed-icon { color: var(--gold); }
+    .feed-item.alert    .feed-icon { color: var(--orange); }
+    .feed-item.system   .feed-icon { color: var(--ink-dim); }
+
+    /* ——— SECTION DIVIDER LABEL ——— */
+    .section-label {
+      font-family: 'Cinzel', serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 6px;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <h1>AsymmFlow</h1>
+    <span class="subtitle">PH Trading WLL &nbsp;·&nbsp; Bahrain &nbsp;·&nbsp; FY 2025–26 &nbsp;·&nbsp; March 2026</span>
+    <span class="live-dot">LIVE</span>
+  </div>
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <!-- KPI STRIP — kpi-A1 -->
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="card" id="kpi-A1">
+    <span class="id-tag">kpi-A1</span>
+
+    <div class="kpi-item">
+      <div class="kpi-label">Revenue MTD</div>
+      <div class="kpi-value"><span class="currency">BHD</span>42,750.000</div>
+      <div class="kpi-trend trend-up"><span class="arrow"></span>+8.4% vs last month</div>
+    </div>
+
+    <div class="kpi-item overdue">
+      <div class="kpi-label">Outstanding</div>
+      <div class="kpi-value"><span class="currency">BHD</span>8,240.500</div>
+      <div class="kpi-trend trend-down"><span class="arrow"></span>+2.1% vs last month</div>
+    </div>
+
+    <div class="kpi-item overdue">
+      <div class="kpi-label">Overdue</div>
+      <div class="kpi-value"><span class="currency">BHD</span>1,850.000</div>
+      <div class="kpi-trend trend-down"><span class="arrow"></span>+12.3% vs last month</div>
+    </div>
+
+    <div class="kpi-item pipeline">
+      <div class="kpi-label">Pipeline Value</div>
+      <div class="kpi-value"><span class="currency">BHD</span>156,000.000</div>
+      <div class="kpi-trend trend-up"><span class="arrow"></span>+21.7% vs last quarter</div>
+    </div>
+
+    <div class="kpi-item">
+      <div class="kpi-label">Collection Rate</div>
+      <div class="kpi-value">87.5%</div>
+      <div class="kpi-trend trend-up"><span class="arrow"></span>+1.2pp vs last month</div>
+    </div>
+
+    <div class="kpi-item">
+      <div class="kpi-label">Active Orders</div>
+      <div class="kpi-value">12</div>
+      <div class="kpi-trend trend-up"><span class="arrow"></span>+3 this week</div>
+    </div>
+  </div>
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <!-- MID ROW: Sparkline + AR Aging -->
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="row">
+
+    <!-- SPARKLINE — chart-A1 -->
+    <div class="card" id="chart-A1">
+      <span class="id-tag">chart-A1</span>
+      <div class="chart-inner">
+        <div class="chart-title">Revenue Trend — 12 Months (BHD)</div>
+        <div class="sparkline-wrap">
+          <!-- SVG Sparkline: 12 monthly values (Apr–Mar) -->
+          <!-- Values: 28k, 31k, 29k, 34k, 33k, 38k, 36k, 40k, 37k, 41k, 39k, 42.75k -->
+          <!-- Normalized to SVG viewport 0–100 height (inverted), 0–100 width -->
+          <svg viewBox="0 0 560 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stop-color="#c5a059" stop-opacity="0.18"/>
+                <stop offset="100%" stop-color="#c5a059" stop-opacity="0.02"/>
+              </linearGradient>
+            </defs>
+
+            <!-- Y-axis reference lines (very faint) -->
+            <line x1="0" y1="20"  x2="560" y2="20"  stroke="#e4e1db" stroke-width="0.5"/>
+            <line x1="0" y1="50"  x2="560" y2="50"  stroke="#e4e1db" stroke-width="0.5"/>
+            <line x1="0" y1="80"  x2="560" y2="80"  stroke="#e4e1db" stroke-width="0.5"/>
+
+            <!-- Y-axis labels -->
+            <text x="2" y="19"  class="chart-y-label" font-family="Courier Prime, monospace" font-size="8" fill="#c0bdb7">42K</text>
+            <text x="2" y="49"  class="chart-y-label" font-family="Courier Prime, monospace" font-size="8" fill="#c0bdb7">35K</text>
+            <text x="2" y="79"  class="chart-y-label" font-family="Courier Prime, monospace" font-size="8" fill="#c0bdb7">28K</text>
+
+            <!-- Fill area under sparkline -->
+            <!-- Points: month positions x=25,72,119,165,212,258,305,351,398,444,491,537 -->
+            <!-- Values normalized: min=28, max=43, range=15, h=80px usable (y: 10–90) -->
+            <!-- y = 90 - ((val-28)/15)*80 -->
+            <!-- Apr=28→90, May=31→74, Jun=29→84.7, Jul=34→58.7, Aug=33→64, Sep=38→37.3, Oct=36→48, Nov=40→26.7, Dec=37→42.7, Jan=41→21.3, Feb=39→32, Mar=42.75→23 -->
+            <polygon
+              points="
+                25,90
+                25,90
+                72,74
+                119,84.7
+                165,58.7
+                212,64
+                258,37.3
+                305,48
+                351,26.7
+                398,42.7
+                444,21.3
+                491,32
+                537,23
+                537,90
+              "
+              fill="url(#sparkGrad)"
+            />
+
+            <!-- Sparkline polyline -->
+            <polyline
+              points="25,90 72,74 119,84.7 165,58.7 212,64 258,37.3 305,48 351,26.7 398,42.7 444,21.3 491,32 537,23"
+              fill="none"
+              stroke="#c5a059"
+              stroke-width="2"
+              stroke-linejoin="round"
+              stroke-linecap="round"
+            />
+
+            <!-- Data dots -->
+            <circle cx="25"  cy="90"   r="3" fill="#c5a059"/>
+            <circle cx="72"  cy="74"   r="3" fill="#c5a059"/>
+            <circle cx="119" cy="84.7" r="3" fill="#c5a059"/>
+            <circle cx="165" cy="58.7" r="3" fill="#c5a059"/>
+            <circle cx="212" cy="64"   r="3" fill="#c5a059"/>
+            <circle cx="258" cy="37.3" r="3" fill="#c5a059"/>
+            <circle cx="305" cy="48"   r="3" fill="#c5a059"/>
+            <circle cx="351" cy="26.7" r="3" fill="#c5a059"/>
+            <circle cx="398" cy="42.7" r="3" fill="#c5a059"/>
+            <circle cx="444" cy="21.3" r="3" fill="#c5a059"/>
+            <circle cx="491" cy="32"   r="3" fill="#c5a059"/>
+            <!-- Current month: larger dot + value label -->
+            <circle cx="537" cy="23"   r="5" fill="#c5a059"/>
+            <text x="520" y="16" font-family="Courier Prime, monospace" font-size="9" fill="#c5a059" font-weight="700">42,750</text>
+
+            <!-- Baseline -->
+            <line x1="18" y1="91" x2="545" y2="91" stroke="#c0bdb7" stroke-width="0.8"/>
+          </svg>
+        </div>
+        <div class="x-axis-labels">
+          <span>Apr</span><span>May</span><span>Jun</span><span>Jul</span>
+          <span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span>
+          <span>Dec</span><span>Jan</span><span>Feb</span><span>Mar</span>
+        </div>
+        <div class="chart-summary">
+          <div class="chart-summary-item">
+            <span class="cs-label">YTD Revenue</span>
+            <span class="cs-val">BHD 428,500.000</span>
+          </div>
+          <div class="chart-summary-item">
+            <span class="cs-label">Peak Month</span>
+            <span class="cs-val">Nov — BHD 40,000</span>
+          </div>
+          <div class="chart-summary-item">
+            <span class="cs-label">12M Growth</span>
+            <span class="cs-val">+52.7%</span>
+          </div>
+          <div class="chart-summary-item">
+            <span class="cs-label">Avg Monthly</span>
+            <span class="cs-val">BHD 35,708.000</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AR AGING — aging-A1 -->
+    <div class="card" id="aging-A1">
+      <span class="id-tag">aging-A1</span>
+      <div class="aging-inner">
+        <div class="aging-title">AR Aging by Customer</div>
+        <div class="aging-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#4EBC80"></div> 0–15d</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#66AACC"></div> 15–30d</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#c5a059"></div> 30–60d</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#D75B42"></div> 60–90d</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#cc3333"></div> 90+d</div>
+        </div>
+
+        <!-- Al Jazeera Steel: 1,200 | 600 | 300 | 150 | 0 = 2,250 -->
+        <div class="aging-row">
+          <div class="aging-row-header">
+            <span class="aging-customer">Al Jazeera Steel</span>
+            <span class="aging-total">BHD 2,250.000</span>
+          </div>
+          <div class="aging-bar">
+            <div class="aging-seg" style="background:#4EBC80; width:53.3%"></div>
+            <div class="aging-seg" style="background:#66AACC; width:26.7%"></div>
+            <div class="aging-seg" style="background:#c5a059; width:13.3%"></div>
+            <div class="aging-seg" style="background:#D75B42; width:6.7%"></div>
+          </div>
+        </div>
+
+        <!-- Gulf Pumps WLL: 800 | 1,200 | 400 | 100 | 0 = 2,500 -->
+        <div class="aging-row">
+          <div class="aging-row-header">
+            <span class="aging-customer">Gulf Pumps WLL</span>
+            <span class="aging-total">BHD 2,500.000</span>
+          </div>
+          <div class="aging-bar">
+            <div class="aging-seg" style="background:#4EBC80; width:32%"></div>
+            <div class="aging-seg" style="background:#66AACC; width:48%"></div>
+            <div class="aging-seg" style="background:#c5a059; width:16%"></div>
+            <div class="aging-seg" style="background:#D75B42; width:4%"></div>
+          </div>
+        </div>
+
+        <!-- Bahrain Piping: 400 | 300 | 600 | 300 | 250 = 1,850 -->
+        <div class="aging-row">
+          <div class="aging-row-header">
+            <span class="aging-customer">Bahrain Piping</span>
+            <span class="aging-total">BHD 1,850.000</span>
+          </div>
+          <div class="aging-bar">
+            <div class="aging-seg" style="background:#4EBC80; width:21.6%"></div>
+            <div class="aging-seg" style="background:#66AACC; width:16.2%"></div>
+            <div class="aging-seg" style="background:#c5a059; width:32.4%"></div>
+            <div class="aging-seg" style="background:#D75B42; width:16.2%"></div>
+            <div class="aging-seg" style="background:#cc3333; width:13.5%"></div>
+          </div>
+        </div>
+
+        <!-- NASS Group: 700 | 200 | 0 | 0 | 0 = 900 -->
+        <div class="aging-row">
+          <div class="aging-row-header">
+            <span class="aging-customer">NASS Group</span>
+            <span class="aging-total">BHD 900.000</span>
+          </div>
+          <div class="aging-bar">
+            <div class="aging-seg" style="background:#4EBC80; width:77.8%"></div>
+            <div class="aging-seg" style="background:#66AACC; width:22.2%"></div>
+          </div>
+        </div>
+
+        <!-- BAPCO Services: 200 | 100 | 200 | 100 | 240 = 840 -->
+        <div class="aging-row">
+          <div class="aging-row-header">
+            <span class="aging-customer">BAPCO Services</span>
+            <span class="aging-total">BHD 840.000</span>
+          </div>
+          <div class="aging-bar">
+            <div class="aging-seg" style="background:#4EBC80; width:23.8%"></div>
+            <div class="aging-seg" style="background:#66AACC; width:11.9%"></div>
+            <div class="aging-seg" style="background:#c5a059; width:23.8%"></div>
+            <div class="aging-seg" style="background:#D75B42; width:11.9%"></div>
+            <div class="aging-seg" style="background:#cc3333; width:28.6%"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /mid row -->
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <!-- BOTTOM ROW: Table + Feed -->
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+  <div class="row" style="align-items: stretch;">
+
+    <!-- CUSTOMER TABLE — table-A1 -->
+    <div class="card" id="table-A1">
+      <span class="id-tag">table-A1</span>
+      <div class="table-inner">
+        <div class="table-header-row">
+          <span class="table-title">Customer Receivables</span>
+          <span class="table-meta">8 accounts &nbsp;·&nbsp; as of 10 Mar 2026</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Customer</th>
+              <th>Grade</th>
+              <th class="num">Invoiced (BHD)</th>
+              <th class="num">Outstanding (BHD)</th>
+              <th class="num">Collected %</th>
+              <th class="num">Avg Days</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="idx">01</td>
+              <td>Al Jazeera Steel</td>
+              <td><span class="grade-badge grade-A">A</span></td>
+              <td class="num">18,400.000</td>
+              <td class="num">2,250.000</td>
+              <td class="num">
+                <div class="pct-bar-wrap">
+                  87.8%
+                  <div class="pct-bar-bg"><div class="pct-bar-fill" style="width:87.8%; background:#4EBC80;"></div></div>
+                </div>
+              </td>
+              <td class="num">14</td>
+            </tr>
+            <tr>
+              <td class="idx">02</td>
+              <td>Gulf Pumps WLL</td>
+              <td><span class="grade-badge grade-A">A</span></td>
+              <td class="num">14,200.000</td>
+              <td class="num">2,500.000</td>
+              <td class="num">
+                <div class="pct-bar-wrap">
+                  82.4%
+                  <div class="pct-bar-bg"><div class="pct-bar-fill" style="width:82.4%; background:#4EBC80;"></div></div>
+                </div>
+              </td>
+              <td class="num">18</td>
+            </tr>
+            <tr>
+              <td class="idx">03</td>
+              <td>Bahrain Piping</td>
+              <td><span class="grade-badge grade-C">C</span></td>
+              <td class="num">9,850.000</td>
+              <td class="num">1,850.000</td>
+              <td class="num">
+                <div class="pct-bar-wrap">
+                  81.2%
+                  <div class="pct-bar-bg"><div class="pct-bar-fill" style="width:81.2%; background:#c5a059;"></div></div>
+                </div>
+              </td>
+              <td class="num">47</td>
+            </tr>
+            <tr>
+              <td class="idx">04</td>
+              <td>NASS Group</td>
+              <td><span class="grade-badge grade-B">B</span></td>
+              <td class="num">7,600.000</td>
+              <td class="num">900.000</td>
+              <td class="num">
+                <div class="pct-bar-wrap">
+                  88.2%
+                  <div class="pct-bar-bg"><div class="pct-bar-fill" style="width:88.2%; background:#66AACC;"></div></div>
+                </div>
+              </td>
+              <td class="num">22</td>
+            </tr>
+            <tr>
+              <td class="idx">05</td>
+              <td>BAPCO Services</td>
+              <td><span class="grade-badge grade-D">D</span></td>
+              <td class="num">6,200.000</td>
+              <td class="num">840.000</td>
+              <td class="num">
+                <div class="pct-bar-wrap">
+                  86.5%
+                  <div class="pct-bar-bg"><div class="pct-bar-fill" style="width:86.5%; background:#D75B42;"></div></div>
+                </div>
+              </td>
+              <td class="num">62</td>
+            </tr>
+            <tr>
+              <td class="idx">06</td>
+              <td>Arabian Engineering</td>
+              <td><span class="grade-badge grade-B">B</span></td>
+              <td class="num">5,400.000</td>
+              <td class="num">0.000</td>
+              <td class="num">
+                <div class="pct-bar-wrap">
+                  100.0%
+                  <div class="pct-bar-bg"><div class="pct-bar-fill" style="width:100%; background:#4EBC80;"></div></div>
+                </div>
+              </td>
+              <td class="num">9</td>
+            </tr>
+            <tr>
+              <td class="idx">07</td>
+              <td>Gulf Petrochemical</td>
+              <td><span class="grade-badge grade-A">A</span></td>
+              <td class="num">4,800.000</td>
+              <td class="num">0.000</td>
+              <td class="num">
+                <div class="pct-bar-wrap">
+                  100.0%
+                  <div class="pct-bar-bg"><div class="pct-bar-fill" style="width:100%; background:#4EBC80;"></div></div>
+                </div>
+              </td>
+              <td class="num">7</td>
+            </tr>
+            <tr>
+              <td class="idx">08</td>
+              <td>Aluminum Bahrain</td>
+              <td><span class="grade-badge grade-B">B</span></td>
+              <td class="num">3,750.000</td>
+              <td class="num">900.500</td>
+              <td class="num">
+                <div class="pct-bar-wrap">
+                  76.0%
+                  <div class="pct-bar-bg"><div class="pct-bar-fill" style="width:76%; background:#66AACC;"></div></div>
+                </div>
+              </td>
+              <td class="num">29</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ACTIVITY FEED — feed-A1 -->
+    <div class="card" id="feed-A1">
+      <span class="id-tag">feed-A1</span>
+      <div class="feed-inner">
+        <div class="feed-title-row">
+          <span class="feed-title">Activity Feed</span>
+          <span class="feed-count">Today &nbsp;·&nbsp; 10 events</span>
+        </div>
+        <div class="feed-scroll">
+
+          <div class="feed-item payment">
+            <span class="feed-time">14:22</span>
+            <span class="feed-icon">&#10003;</span>
+            <span class="feed-text">
+              Payment <span class="amount">BHD 3,500.000</span> received from <span class="company">Gulf Pumps WLL</span>. Invoice INV-2026-0312 cleared.
+            </span>
+          </div>
+
+          <div class="feed-item invoice">
+            <span class="feed-time">13:45</span>
+            <span class="feed-icon">&#9654;</span>
+            <span class="feed-text">
+              New invoice <span class="amount">BHD 2,800.000</span> issued to <span class="company">Al Jazeera Steel</span> for pressure valves (PO-4481).
+            </span>
+          </div>
+
+          <div class="feed-item overdue">
+            <span class="feed-time">12:58</span>
+            <span class="feed-icon">&#9888;</span>
+            <span class="feed-text">
+              Overdue alert: <span class="company">BAPCO Services</span> — INV-2026-0289, <span class="amount">BHD 240.000</span>, 67 days past due.
+            </span>
+          </div>
+
+          <div class="feed-item order">
+            <span class="feed-time">11:30</span>
+            <span class="feed-icon">&#9670;</span>
+            <span class="feed-text">
+              Purchase order <span class="amount">BHD 15,200.000</span> confirmed from <span class="company">NASS Group</span> for Q2 instrumentation supply.
+            </span>
+          </div>
+
+          <div class="feed-item payment">
+            <span class="feed-time">10:14</span>
+            <span class="feed-icon">&#10003;</span>
+            <span class="feed-text">
+              Partial payment <span class="amount">BHD 1,200.000</span> from <span class="company">Bahrain Piping</span>. Outstanding reduced to BHD 1,850.000.
+            </span>
+          </div>
+
+          <div class="feed-item alert">
+            <span class="feed-time">09:47</span>
+            <span class="feed-icon">&#9650;</span>
+            <span class="feed-text">
+              Pipeline stage change: <span class="company">Aluminum Bahrain</span> proposal moved to Negotiation. Value <span class="amount">BHD 28,000.000</span>.
+            </span>
+          </div>
+
+          <div class="feed-item invoice">
+            <span class="feed-time">09:12</span>
+            <span class="feed-icon">&#9654;</span>
+            <span class="feed-text">
+              Statement of account sent to <span class="company">Bahrain Piping</span> (3 outstanding invoices, <span class="amount">BHD 1,850.000</span> total).
+            </span>
+          </div>
+
+          <div class="feed-item payment">
+            <span class="feed-time">08:50</span>
+            <span class="feed-icon">&#10003;</span>
+            <span class="feed-text">
+              Payment <span class="amount">BHD 4,800.000</span> received from <span class="company">Gulf Petrochemical</span>. Account fully settled.
+            </span>
+          </div>
+
+          <div class="feed-item system">
+            <span class="feed-time">08:30</span>
+            <span class="feed-icon">&#9679;</span>
+            <span class="feed-text">
+              Daily reconciliation completed. Bank balance confirmed: <span class="amount">BHD 94,210.750</span>. 0 discrepancies.
+            </span>
+          </div>
+
+          <div class="feed-item order">
+            <span class="feed-time">08:05</span>
+            <span class="feed-icon">&#9670;</span>
+            <span class="feed-text">
+              New quotation <span class="amount">BHD 6,400.000</span> drafted for <span class="company">Arabian Engineering</span> — flow meter installation project.
+            </span>
+          </div>
+
+        </div><!-- /feed-scroll -->
+      </div>
+    </div>
+
+  </div><!-- /bottom row -->
+
+</body>
+</html>

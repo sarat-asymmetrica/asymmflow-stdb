@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asymmetrica | Shibui Forms</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.7.1/gsap.min.js"></script>
+    <style>
+        /* 
+         * SHIBUI FORMS THEME
+         * Subtle Beauty & Tactile Grace
+         */
+        :root {
+            --bg: #f5f5f4;
+            /* Stone */
+            --text: #44403c;
+            /* Warm Grey */
+            --input-bg: #e7e5e4;
+            --focus: #0c4a6e;
+            /* Deep Ocean Blue */
+            --accent: #ea580c;
+            /* Burnt Orange */
+
+            --font-sans: 'Inter', sans-serif;
+            --font-serif: 'Georgia', serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 40px;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: var(--font-sans);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .nav-back {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            text-decoration: none;
+            color: var(--text);
+            font-family: var(--font-sans);
+            font-size: 12px;
+            opacity: 0.5;
+            transition: opacity 0.3s;
+        }
+
+        .nav-back:hover {
+            opacity: 1;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+        }
+
+        header {
+            margin-bottom: 60px;
+            text-align: center;
+        }
+
+        h1 {
+            font-family: var(--font-serif);
+            font-weight: normal;
+            font-size: 32px;
+            margin: 0;
+            color: var(--text);
+        }
+
+        .subtitle {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0.6;
+            margin-top: 10px;
+        }
+
+        /* FORM ELEMENTS */
+        .form-group {
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        /* 1. Minimalist Line Input */
+        .input-line {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            padding: 10px 0;
+            font-family: var(--font-serif);
+            font-size: 18px;
+            color: var(--text);
+            outline: none;
+            transition: all 0.4s ease;
+        }
+
+        .input-line:focus {
+            border-bottom: 1px solid var(--focus);
+        }
+
+        .label-float {
+            position: absolute;
+            top: 10px;
+            left: 0;
+            font-size: 14px;
+            color: rgba(0, 0, 0, 0.4);
+            pointer-events: none;
+            transition: all 0.4s ease;
+        }
+
+        .input-line:focus+.label-float,
+        .input-line:not(:placeholder-shown)+.label-float {
+            top: -15px;
+            font-size: 10px;
+            color: var(--focus);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* 2. Tactile Toggle */
+        .toggle-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .toggle-label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .shibui-toggle {
+            width: 44px;
+            height: 24px;
+            background: #d6d3d1;
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .shibui-toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .shibui-toggle.active {
+            background: var(--focus);
+        }
+
+        .shibui-toggle.active::after {
+            transform: translateX(20px);
+        }
+
+        /* 3. Zen Button */
+        .btn-zen {
+            background: var(--text);
+            color: var(--bg);
+            border: none;
+            padding: 15px 40px;
+            font-family: var(--font-sans);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.5s ease;
+        }
+
+        .btn-zen:hover {
+            background: var(--focus);
+            letter-spacing: 4px;
+        }
+
+        /* RIPPLE EFFECT */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(0);
+            animation: ripple 0.6s linear;
+            pointer-events: none;
+        }
+
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <a href="index.html" class="nav-back">← ATELIER</a>
+
+    <div class="container">
+        <header>
+            <h1>Shibui Forms</h1>
+            <div class="subtitle">Quiet Elegance</div>
+        </header>
+
+        <form onsubmit="return false;">
+
+            <!-- Input 1 -->
+            <div class="form-group">
+                <input type="text" class="input-line" id="name" placeholder=" " autocomplete="off">
+                <label for="name" class="label-float">Full Name</label>
+            </div>
+
+            <!-- Input 2 -->
+            <div class="form-group">
+                <input type="email" class="input-line" id="email" placeholder=" " autocomplete="off">
+                <label for="email" class="label-float">Email Address</label>
+            </div>
+
+            <!-- Toggle 1 -->
+            <div class="toggle-wrapper">
+                <span class="toggle-label">Enable Notifications</span>
+                <div class="shibui-toggle" onclick="this.classList.toggle('active')"></div>
+            </div>
+
+            <!-- Toggle 2 -->
+            <div class="toggle-wrapper">
+                <span class="toggle-label">Dark Mode Preference</span>
+                <div class="shibui-toggle active" onclick="this.classList.toggle('active')"></div>
+            </div>
+
+            <!-- Button -->
+            <button class="btn-zen" onclick="createRipple(event)">Submit</button>
+
+        </form>
+
+        <div style="margin-top: 60px; font-size: 12px; opacity: 0.5; line-height: 1.6;">
+            <p>
+                <strong>DESIGN NOTE:</strong><br>
+                Shibui (渋い) refers to a particular aesthetic of simple, subtle, and unobtrusive beauty.
+                These inputs do not shout; they wait. The toggles have a "mechanical" spring physics
+                feel (using cubic-bezier) to give tactile feedback.
+            </p>
+        </div>
+
+    </div>
+
+    <script>
+        function createRipple(event) {
+            const button = event.currentTarget;
+            const circle = document.createElement("span");
+            const diameter = Math.max(button.clientWidth, button.clientHeight);
+            const radius = diameter / 2;
+
+            circle.style.width = circle.style.height = `${diameter}px`;
+            circle.style.left = `${event.clientX - button.getBoundingClientRect().left - radius}px`;
+            circle.style.top = `${event.clientY - button.getBoundingClientRect().top - radius}px`;
+            circle.classList.add("ripple");
+
+            const ripple = button.getElementsByClassName("ripple")[0];
+
+            if (ripple) {
+                ripple.remove();
+            }
+
+            button.appendChild(circle);
+        }
+    </script>
+</body>
+
+</html>

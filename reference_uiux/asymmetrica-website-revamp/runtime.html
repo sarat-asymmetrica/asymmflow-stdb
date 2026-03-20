@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Runtime - Asymmetrica.ai</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      overflow: hidden; /* Prevent scrolling on runtime page */
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .runtime-navbar {
+      flex-shrink: 0;
+    }
+
+    .runtime-container {
+      display: flex;
+      flex-grow: 1;
+      height: calc(100vh - 86px); /* Adjusted for new navbar height */
+      overflow: hidden;
+    }
+
+    /* Left Column - History */
+    .history-column {
+      width: 300px;
+      background-color: var(--bg-primary);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      box-shadow: 4px 0 15px rgba(0,0,0,0.03);
+      z-index: 10;
+    }
+
+    .history-header {
+      padding: 2rem 1.5rem 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .search-bar {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-family: var(--font-sans);
+    }
+    
+    .search-bar:focus {
+      outline: none;
+      border-color: var(--accent-charcoal);
+    }
+
+    .history-list {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .history-item {
+      padding: 0.85rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      border: 1px solid transparent;
+    }
+
+    .history-item:hover {
+      background-color: rgba(0, 0, 0, 0.02);
+      color: var(--text-primary);
+    }
+
+    .history-item.active {
+      background-color: white;
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Center Column - Chat */
+    .chat-column {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg-primary);
+      min-width: 400px;
+      z-index: 1;
+    }
+
+    .chat-header {
+      padding: 2.5rem 4rem 2rem;
+      border-bottom: 1px solid var(--border-color);
+      background-color: var(--bg-primary);
+    }
+
+    .chat-header h2 {
+      font-size: 1.35rem;
+      margin-bottom: 1rem;
+    }
+
+    .chat-header p {
+      font-size: 0.8rem;
+      margin-bottom: 0;
+      max-width: 600px;
+    }
+
+    .chat-messages {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 3rem 4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2.5rem;
+    }
+
+    .message {
+      max-width: 85%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .message.user {
+      align-self: flex-end;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+    }
+
+    .message-content {
+      padding: 1.25rem 1.5rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      line-height: 1.6;
+    }
+
+    .message.user .message-content {
+      background-color: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .message.assistant .message-content {
+      background-color: white;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-md);
+    }
+
+    .message-sender {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+      padding: 0 0.25rem;
+    }
+
+    .chat-input-area {
+      padding: 2rem 4rem;
+      background-color: var(--bg-primary);
+      border-top: 1px solid var(--border-color);
+      box-shadow: 0 -4px 15px rgba(0,0,0,0.02);
+      z-index: 5;
+    }
+
+    .chat-input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background-color: white;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.3s ease;
+    }
+
+    .chat-input-wrapper:focus-within {
+      border-color: var(--accent-charcoal);
+      box-shadow: var(--shadow-md);
+    }
+
+    .upload-btn {
+      background: transparent;
+      border: none;
+      width: 36px;
+      height: 36px;
+      margin: 0.75rem 0 0.75rem 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-secondary);
+      border-radius: 6px;
+      transition: background-color 0.3s ease;
+    }
+
+    .upload-btn:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+      color: var(--text-primary);
+    }
+
+    .chat-input {
+      flex-grow: 1;
+      border: none;
+      background: transparent;
+      padding: 1.25rem;
+      resize: none;
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      max-height: 200px;
+      min-height: 24px;
+      color: var(--text-primary);
+    }
+
+    .chat-input:focus {
+      outline: none;
+    }
+
+    .send-btn {
+      background-color: var(--accent-charcoal);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      width: 36px;
+      height: 36px;
+      margin: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .send-btn:hover {
+      background-color: var(--accent-charcoal-hover);
+    }
+
+    /* Right Column - Artifacts */
+    .artifacts-column {
+      width: 360px;
+      background-color: var(--bg-primary);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      box-shadow: -4px 0 15px rgba(0,0,0,0.03);
+      z-index: 10;
+      position: relative;
+      transition: width 0.3s ease, margin-right 0.3s ease;
+    }
+
+    .artifacts-column.collapsed {
+      width: 0;
+      border-left: none;
+      margin-right: 18px; /* Leave space for the toggle button */
+    }
+
+    .artifacts-content {
+      width: 360px;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      transition: opacity 0.2s ease;
+    }
+
+    .artifacts-column.collapsed .artifacts-content {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .collapse-toggle {
+      position: absolute;
+      left: -14px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      z-index: 11;
+      color: var(--text-secondary);
+      transition: all 0.2s ease;
+    }
+
+    .artifacts-column.collapsed .collapse-toggle {
+      left: -28px; /* Push the button fully into view when panel is hidden */
+    }
+    
+    .collapse-toggle:hover {
+      color: var(--accent-charcoal);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transform: translateY(-50%) scale(1.05);
+    }
+
+    .artifacts-header {
+      padding: 2.5rem 2rem 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .artifacts-header h3 {
+      font-size: 0.9rem;
+      margin-bottom: 0;
+    }
+
+    .artifacts-list {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .artifact-card {
+      background-color: white;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .artifact-type {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+    }
+
+    .artifact-title {
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-bottom: 0.75rem;
+    }
+
+    .artifact-desc {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-bottom: 0;
+    }
+  </style>
+</head>
+<body class="page-transition">
+  <nav class="navbar runtime-navbar">
+    <div class="nav-container">
+      <a href="index.html" class="logo">Asymmetrica.ai</a>
+      <div class="nav-right-wrapper">
+        <div class="nav-links">
+          <a href="index.html" class="nav-link">Home</a>
+          <a href="about.html" class="nav-link">About</a>
+          <a href="capabilities.html" class="nav-link">Capabilities</a>
+          <a href="contact.html" class="nav-link">Contact</a>
+        </div>
+        <div class="nav-actions">
+          <a href="#" class="btn btn-secondary active" style="padding: 0.5rem 1.5rem; border-color: var(--accent-charcoal); color: var(--accent-charcoal);" onclick="alert('Sign in modal would appear here')">Sign In</a>
+          <a href="index.html" class="btn btn-primary" style="padding: 0.5rem 1.5rem; margin-left: 1rem;">Exit</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="runtime-container">
+    
+    <!-- Left Column: History -->
+    <div class="history-column">
+      <div class="history-header">
+        <input type="text" class="search-bar" placeholder="Search conversations...">
+      </div>
+      <div class="history-list">
+        <div class="history-item active">Invoice Processing Analysis</div>
+        <div class="history-item">Quarterly Cashflow Simulation</div>
+        <div class="history-item">RFQ Parsing & Extraction</div>
+        <div class="history-item">Pricing Intelligence Query</div>
+        <div class="history-item">Customer 360 Graph Search</div>
+        <div class="history-item">System Ecosystem Scan</div>
+      </div>
+    </div>
+
+    <!-- Center Column: Chat -->
+    <div class="chat-column">
+      <div class="chat-header">
+        <h2>Asymmetrica Runtime</h2>
+        <p>
+          The Runtime is a production-hardened consciousness kernel. It utilizes 21+ AI kernels (like Purifier, Sage, Origami, Weaver, and VQC) to execute operations across a Universal Graph IR. Ask anything or drop a file—the mathematical substrate decides how to process it.
+        </p>
+      </div>
+      
+      <div class="chat-messages">
+        
+        <div class="message assistant reveal active">
+          <div class="message-sender">Asymmetrica Runtime</div>
+          <div class="message-content">
+            System initialized. GraphStore active. Intelligence kernels loaded. How can I assist you today?
+          </div>
+        </div>
+
+        <div class="message user reveal active" style="transition-delay: 0.1s;">
+          <div class="message-sender">User</div>
+          <div class="message-content">
+            Analyze the attached invoice and extract the relevant entities for our accounting system.
+          </div>
+        </div>
+
+        <div class="message assistant reveal active" style="transition-delay: 0.2s;">
+          <div class="message-sender">Asymmetrica Runtime</div>
+          <div class="message-content">
+            Document received. Running OCR Pipeline and Document Purifier kernel.<br><br>
+            Extraction complete. I have identified this as a standard invoice and generated the structured data artifact. I've also checked the vendor against our Customer 360 Graph—this is a known supplier (CUST-004) with a "Value-Balanced" regime.
+          </div>
+        </div>
+
+      </div>
+
+      <div class="chat-input-area">
+        <div class="chat-input-wrapper">
+          <button class="upload-btn" aria-label="Upload file" title="Attach file">
+            <i data-lucide="paperclip" style="width: 18px; height: 18px;"></i>
+          </button>
+          <textarea class="chat-input" placeholder="Message Asymmetrica Runtime..." rows="1"></textarea>
+          <button class="send-btn" aria-label="Send message">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Artifacts -->
+    <div class="artifacts-column" id="artifacts-column">
+      <button class="collapse-toggle" onclick="
+        const panel = document.getElementById('artifacts-column');
+        panel.classList.toggle('collapsed'); 
+        const icon = this.querySelector('svg');
+        
+        if(panel.classList.contains('collapsed')) { 
+          icon.outerHTML = '<i data-lucide=\'chevron-left\' style=\'width: 16px; height: 16px;\'></i>'; 
+        } else { 
+          icon.outerHTML = '<i data-lucide=\'chevron-right\' style=\'width: 16px; height: 16px;\'></i>'; 
+        } 
+        lucide.createIcons();
+      " title="Toggle Sidebar">
+        <i data-lucide="chevron-right" style="width: 16px; height: 16px;"></i>
+      </button>
+      
+      <div class="artifacts-content">
+        <div class="artifacts-header">
+          <h3>Artifacts & Memory</h3>
+        </div>
+        <div class="artifacts-list">
+          
+          <div class="artifact-card reveal active">
+            <div class="artifact-type">Structured Data</div>
+            <div class="artifact-title">Extracted Invoice Entities</div>
+            <p class="artifact-desc">JSON structure containing amount ($4,250.00), date (Oct 15, 2026), and line items.</p>
+          </div>
+
+          <div class="artifact-card reveal active" style="transition-delay: 0.1s;">
+            <div class="artifact-type">Graph Node</div>
+            <div class="artifact-title">Supplier Verification</div>
+            <p class="artifact-desc">Linked to existing node CUST-004. Confidence score: 0.98.</p>
+          </div>
+          
+          <div class="artifact-card reveal active" style="transition-delay: 0.2s;">
+            <div class="artifact-type">Suggested Action</div>
+            <div class="artifact-title">Create Payment Entry</div>
+            <p class="artifact-desc">Ready to sync to accounting module.</p>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>

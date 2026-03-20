@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact - Asymmetrica.ai</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    .form-group {
+      margin-bottom: 2rem;
+    }
+    .form-label {
+      display: block;
+      margin-bottom: 0.75rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+    }
+    .form-control {
+      width: 100%;
+      padding: 1rem 1.25rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-family: var(--font-sans);
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      background-color: white;
+      transition: all 0.3s ease;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: var(--accent-charcoal);
+      box-shadow: var(--shadow-sm);
+    }
+    textarea.form-control {
+      resize: vertical;
+      min-height: 160px;
+    }
+  </style>
+</head>
+<body class="page-transition">
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="logo">Asymmetrica.ai</a>
+      <div class="nav-right-wrapper">
+        <div class="nav-links">
+          <a href="index.html" class="nav-link">Home</a>
+          <a href="about.html" class="nav-link">About</a>
+          <a href="capabilities.html" class="nav-link">Capabilities</a>
+          <a href="contact.html" class="nav-link active">Contact</a>
+        </div>
+        <div class="nav-actions">
+          <a href="runtime.html" target="_blank" class="btn btn-secondary" style="padding: 0.5rem 1.5rem;">Enter Runtime</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <section class="hero-section container" style="padding-top: 6rem; padding-bottom: 4rem;">
+      <div class="reveal" style="max-width: 900px;">
+        <h1 style="font-size: 3.5rem; line-height: 1.1; margin-bottom: 3rem;">Get in Touch</h1>
+        <p style="font-size: 1.1rem; max-width: 600px; line-height: 2;">
+          Interested in deploying the Asymmetrica Runtime for your enterprise? Reach out to our team.
+        </p>
+      </div>
+    </section>
+
+    <section class="container pt-0 pb-12">
+      <div class="grid gap-12" style="grid-template-columns: 3fr 2fr; align-items: start;">
+        
+        <div class="card reveal" style="padding: 4rem;">
+          <form action="#" method="POST" onsubmit="event.preventDefault(); alert('Message sent successfully.');">
+            <div class="grid gap-4" style="grid-template-columns: 1fr 1fr;">
+              <div class="form-group">
+                <label for="name" class="form-label">Full Name</label>
+                <input type="text" id="name" name="name" class="form-control" required>
+              </div>
+              <div class="form-group">
+                <label for="company" class="form-label">Company</label>
+                <input type="text" id="company" name="company" class="form-control" required>
+              </div>
+            </div>
+            
+            <div class="grid gap-4" style="grid-template-columns: 1fr 1fr;">
+              <div class="form-group">
+                <label for="email" class="form-label">Work Email</label>
+                <input type="email" id="email" name="email" class="form-control" required>
+              </div>
+              <div class="form-group">
+                <label for="phone" class="form-label">Phone Number</label>
+                <input type="tel" id="phone" name="phone" class="form-control">
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="message" class="form-label">How can we help?</label>
+              <textarea id="message" name="message" class="form-control" required></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-primary w-full mt-4" style="padding: 1.25rem; font-size: 1rem;">Send Message</button>
+          </form>
+        </div>
+
+        <div class="reveal" style="transition-delay: 0.2s; padding-top: 2rem;">
+          <h3 style="margin-bottom: 3rem;">Contact Details</h3>
+          
+          <div style="margin-bottom: 4rem;">
+            <p style="font-weight: 500; color: var(--text-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem;">
+              <i data-lucide="mail" class="icon-pulse icon-base" style="width: 20px; height: 20px;"></i> Email
+            </p>
+            <p><a href="mailto:hello@asymmetrica.ai" style="color: var(--text-secondary); text-decoration: underline;">hello@asymmetrica.ai</a></p>
+          </div>
+          
+          <div style="margin-bottom: 4rem;">
+            <p style="font-weight: 500; color: var(--text-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem;">
+              <i data-lucide="map-pin" class="icon-float icon-base" style="width: 20px; height: 20px;"></i> Headquarters
+            </p>
+            <p style="color: var(--text-secondary);">Goa, India</p>
+          </div>
+
+          <div style="margin-bottom: 4rem;">
+            <p style="font-weight: 500; color: var(--text-primary); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+              <i data-lucide="shield" class="icon-spin-slow icon-base" style="width: 20px; height: 20px;"></i> Research Sovereignty
+            </p>
+            <p style="color: var(--text-secondary); line-height: 2;">
+              Built outside Silicon Valley's constraints. Your data lives on your terms. No telemetry harvesting. No lock-in. Mathematical truth as the only authority.
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+      <div>
+        <div class="footer-logo text-primary">Asymmetrica.ai</div>
+        <p class="footer-text mb-0">Intelligence that breathes. Interfaces that live.</p>
+        <p class="footer-text mb-0 mt-4">Built with love, math, and requestAnimationFrame in Goa, India.</p>
+      </div>
+      <div style="text-align: right;">
+        <div class="footer-links" style="justify-content: flex-end; margin-bottom: 2rem;">
+          <a href="about.html" class="footer-text">About</a>
+          <a href="capabilities.html" class="footer-text">Capabilities</a>
+          <a href="contact.html" class="footer-text">Contact</a>
+        </div>
+        <p class="footer-text mb-0">© 2026 Asymmetrica. All rights reserved.</p>
+        <p class="footer-text mb-0 mt-4"><a href="mailto:hello@asymmetrica.ai">hello@asymmetrica.ai</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>
