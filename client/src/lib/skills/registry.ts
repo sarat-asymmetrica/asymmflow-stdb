@@ -481,6 +481,104 @@ const SKILLS: SkillDefinition[] = [
     ],
   },
 
+  // ── FINANCE SKILLS ──────────────────────────────────────────────────────────
+
+  {
+    name: 'compute_vat_return',
+    displayName: 'VAT Return',
+    description:
+      'Compute VAT return for a period: output VAT on sales vs input VAT on purchases, with net payable amount.',
+    category: 'data',
+    approval: 'auto',
+    requiredRoles: ['Admin', 'Manager', 'Accountant'],
+    parameters: [
+      {
+        name: 'year',
+        type: 'number',
+        required: true,
+        description: 'Year for the VAT return, e.g. 2026.',
+      },
+      {
+        name: 'quarter',
+        type: 'number',
+        required: false,
+        description: 'Quarter (1-4). If omitted, computes full year.',
+      },
+    ],
+  },
+
+  {
+    name: 'generate_sales_report',
+    displayName: 'Sales Report',
+    description:
+      'Generate a formatted sales report with revenue, top customers, pipeline summary, and monthly breakdown for a period.',
+    category: 'data',
+    approval: 'auto',
+    requiredRoles: ['Admin', 'Manager', 'Sales', 'Accountant'],
+    parameters: [
+      {
+        name: 'year',
+        type: 'number',
+        required: true,
+        description: 'Year for the report.',
+      },
+      {
+        name: 'quarter',
+        type: 'number',
+        required: false,
+        description: 'Quarter (1-4). If omitted, computes full year.',
+      },
+    ],
+  },
+
+  {
+    name: 'generate_collections_report',
+    displayName: 'Collections Report',
+    description:
+      'Generate a collections report with collection rate, average days to payment, and grade-level breakdown.',
+    category: 'data',
+    approval: 'auto',
+    requiredRoles: ['Admin', 'Manager', 'Accountant'],
+    parameters: [
+      {
+        name: 'year',
+        type: 'number',
+        required: true,
+        description: 'Year for the report.',
+      },
+      {
+        name: 'quarter',
+        type: 'number',
+        required: false,
+        description: 'Quarter (1-4). If omitted, computes full year.',
+      },
+    ],
+  },
+
+  {
+    name: 'generate_payables_report',
+    displayName: 'Payables Report',
+    description:
+      'Generate an accounts payable report showing per-supplier invoiced, paid, and outstanding amounts.',
+    category: 'data',
+    approval: 'auto',
+    requiredRoles: ['Admin', 'Manager', 'Accountant'],
+    parameters: [
+      {
+        name: 'year',
+        type: 'number',
+        required: true,
+        description: 'Year for the report.',
+      },
+      {
+        name: 'quarter',
+        type: 'number',
+        required: false,
+        description: 'Quarter (1-4). If omitted, computes full year.',
+      },
+    ],
+  },
+
   // ── INTELLIGENCE SKILLS ───────────────────────────────────────────────────────
 
   {

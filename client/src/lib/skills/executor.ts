@@ -42,6 +42,11 @@ import { prepareTallyImportPreview, executeTallyImport } from '../business/tally
 import type { TallyImportMode } from '../business/tallyImport';
 import { parseBankStatementCsv } from '../business/bankReconciliation';
 import { Timestamp } from 'spacetimedb';
+import { computeVATReturn, getQuarterlyPeriods, formatVATReturnReport } from '../business/vatReturn';
+import {
+  generateSalesReport, generateCollectionsReport, generatePayablesReport,
+  formatSalesReport, formatCollectionsReport, formatPayablesReport,
+} from '../business/financialReports';
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -946,6 +951,95 @@ async function handleImportBankStatement(
   };
 }
 
+// ── Finance report handlers ──────────────────────────────────────────────────
+
+function buildPeriodFromParams(params: Record<string, unknown>): { startDate: string; endDate: string; label: string } {
+  const year = Number(params.year ?? new Date().getFullYear());
+  const quarter = params.quarter != null ? Number(params.quarter) : null;
+
+  if (quarter != null && quarter >= 1 && quarter <= 4) {
+    const periods = getQuarterlyPeriods(year);
+    return periods[quarter - 1];
+  }
+  return { startDate: `${year}-01-01`, endDate: `${year}-12-31`, label: `FY ${year}` };
+}
+
+async function handleComputeVATReturn(params: Record<string, unknown>): Promise<SkillResult> {
+  const period = buildPeriodFromParams(params);
+  const result = computeVATReturn(period, get(moneyEvents) as never, get(parties) as never);
+  const report = formatVATReturnReport(result);
+
+  return {
+    success: true,
+    summary: result.summary,
+    data: {
+      period: result.period,
+      outputVATFils: String(result.outputVAT.totalVATFils),
+      inputVATFils: String(result.inputVAT.totalVATFils),
+      netPayableFils: String(result.netVATPayableFils),
+      outputInvoiceCount: result.outputVAT.invoiceCount,
+      inputInvoiceCount: result.inputVAT.invoiceCount,
+      report,
+    },
+  };
+}
+
+async function handleGenerateSalesReport(params: Record<string, unknown>): Promise<SkillResult> {
+  const period = buildPeriodFromParams(params);
+  const report = generateSalesReport(
+    period, get(moneyEvents) as never, get(parties) as never, get(pipelines) as never,
+  );
+  const text = formatSalesReport(report);
+
+  return {
+    success: true,
+    summary: `Sales report for ${period.label}: BHD ${formatBHD(report.totalRevenueFils)} revenue from ${report.invoiceCount} invoices.`,
+    data: {
+      period: report.period,
+      totalRevenueFils: String(report.totalRevenueFils),
+      invoiceCount: report.invoiceCount,
+      topCustomers: report.topCustomers.map(c => ({ name: c.name, grade: c.grade, revenueBHD: formatBHD(c.revenueFils) })),
+      pipelineSummary: report.pipelineSummary,
+      report: text,
+    },
+  };
+}
+
+async function handleGenerateCollectionsReport(params: Record<string, unknown>): Promise<SkillResult> {
+  const period = buildPeriodFromParams(params);
+  const report = generateCollectionsReport(period, get(moneyEvents) as never, get(parties) as never);
+  const text = formatCollectionsReport(report);
+
+  return {
+    success: true,
+    summary: `Collections report for ${period.label}: ${report.collectionRatePct.toFixed(1)}% collection rate, avg ${report.averageDaysToPayment} days to payment.`,
+    data: {
+      period: report.period,
+      collectionRatePct: report.collectionRatePct,
+      averageDaysToPayment: report.averageDaysToPayment,
+      totalCollectedFils: String(report.totalCollectedFils),
+      report: text,
+    },
+  };
+}
+
+async function handleGeneratePayablesReport(params: Record<string, unknown>): Promise<SkillResult> {
+  const period = buildPeriodFromParams(params);
+  const report = generatePayablesReport(period, get(moneyEvents) as never, get(parties) as never);
+  const text = formatPayablesReport(report);
+
+  return {
+    success: true,
+    summary: `Payables report for ${period.label}: BHD ${formatBHD(report.totalPayableFils)} outstanding across ${report.supplierCount} suppliers.`,
+    data: {
+      period: report.period,
+      totalPayableFils: String(report.totalPayableFils),
+      supplierCount: report.supplierCount,
+      report: text,
+    },
+  };
+}
+
 // ── Public entry point ────────────────────────────────────────────────────────
 
 /**
@@ -1087,6 +1181,18 @@ export async function executeSkill(
 
       case 'import_bank_statement':
         return await handleImportBankStatement(params);
+
+      case 'compute_vat_return':
+        return await handleComputeVATReturn(params);
+
+      case 'generate_sales_report':
+        return await handleGenerateSalesReport(params);
+
+      case 'generate_collections_report':
+        return await handleGenerateCollectionsReport(params);
+
+      case 'generate_payables_report':
+        return await handleGeneratePayablesReport(params);
 
       default:
         return {
