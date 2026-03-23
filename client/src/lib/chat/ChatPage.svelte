@@ -6,7 +6,7 @@
   import ButlerAvatar from './ButlerAvatar.svelte';
   import { AIClient, loadConfig, extractSkillBlock } from '../ai/client';
   import { buildBusinessState, buildSystemPrompt } from '../ai/context';
-  import { currentMember, parties, moneyEvents, chatMessages, aiMemories, identity, getConnection } from '../db';
+  import { currentMember, parties, moneyEvents, chatMessages, aiMemories, identity, aiActions, getConnection } from '../db';
   import { persistMessage } from '../chatPersistence';
   import TransitionCard from '../components/TransitionCard.svelte';
   import { toast } from '../stores';
@@ -123,7 +123,9 @@
         approval: m.approval
           ? {
               skillName: m.approval.skillName,
-              params: {},
+              params: m.approval.params ?? {},
+              plan: m.approval.plan,
+              actionId: m.approval.actionId,
               status: (
                 m.approval.status === 'Proposed' ? 'pending' :
                 m.approval.status === 'Approved' ? 'approved' : 'rejected'
@@ -261,7 +263,9 @@
     const approvalForPersist = msg.approval
       ? {
           skillName: msg.approval.skillName,
-          plan: '',
+          params: msg.approval.params,
+          plan: msg.approval.plan ?? '',
+          actionId: msg.approval.actionId,
           status: (
             msg.approval.status === 'pending' ? 'Proposed' :
             msg.approval.status === 'approved' ? 'Approved' : 'Rejected'
@@ -279,6 +283,26 @@
   }
 
   // ── Send handler ──────────────────────────────────────────────────────────────
+  async function waitForAiActionId(previousIds: Set<bigint>, timeoutMs = 4000): Promise<bigint> {
+    const started = Date.now();
+    while (Date.now() - started < timeoutMs) {
+      const next = get(aiActions).find((row) => !previousIds.has(row.id));
+      if (next) return next.id;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    throw new Error('Timed out waiting for AI action audit record.');
+  }
+
+  async function proposeAiAction(skillName: string, plan: string): Promise<string | undefined> {
+    const conn = getConnection();
+    if (!conn) return undefined;
+
+    const existingIds = new Set(get(aiActions).map((row) => row.id));
+    await conn.reducers.proposeAiAction({ skillName, plan });
+    const actionId = await waitForAiActionId(existingIds);
+    return String(actionId);
+  }
+
   async function handleSend(text: string) {
     const userMsg: StoredMessage = {
       id: uid(),
@@ -363,8 +387,22 @@
       if (skillBlock) {
         const skillDef = getSkillByName(skillBlock.skill);
         const needsApproval = !skillDef || skillDef.approval !== 'auto';
+        const plan = humanizeSkillParams(skillBlock.skill, skillBlock.params);
 
         if (needsApproval) {
+          let actionId: string | undefined;
+          try {
+            actionId = await proposeAiAction(skillBlock.skill, plan);
+          } catch (auditError) {
+            const message = auditError instanceof Error ? auditError.message : String(auditError);
+            addMessage({
+              id: uid(),
+              role: 'assistant',
+              content: `I couldn't persist the approval request to the audit log: ${message}`,
+              timestamp: Date.now(),
+            });
+          }
+
           const approvalId = uid();
           addMessage({
             id: approvalId,
@@ -376,6 +414,8 @@
             approval: {
               skillName: skillBlock.skill,
               params: skillBlock.params,
+              plan,
+              actionId,
               status: 'pending',
             },
           });
@@ -439,12 +479,28 @@
 
   async function handleApprove(msg: DisplayMessage) {
     if (!msg.approval || msg.approval.status !== 'pending') return;
+    const conn = getConnection();
+    if (msg.approval.actionId && conn) {
+      await conn.reducers.resolveAiAction({
+        actionId: BigInt(msg.approval.actionId),
+        approve: true,
+        result: `Approved in chat for ${msg.approval.skillName}`,
+      });
+    }
     updateApprovalStatus(msg.id, 'approved');
     await handleSkillExecution(msg.approval.skillName, msg.approval.params);
   }
 
-  function handleReject(msg: DisplayMessage) {
+  async function handleReject(msg: DisplayMessage) {
     if (!msg.approval || msg.approval.status !== 'pending') return;
+    const conn = getConnection();
+    if (msg.approval.actionId && conn) {
+      await conn.reducers.resolveAiAction({
+        actionId: BigInt(msg.approval.actionId),
+        approve: false,
+        result: `Rejected in chat for ${msg.approval.skillName}`,
+      });
+    }
     updateApprovalStatus(msg.id, 'rejected');
     addMessage({
       id: uid(),
@@ -728,7 +784,9 @@
             approval={msg.approval
               ? {
                   skillName: msg.approval.skillName,
-                  plan: humanizeSkillParams(msg.approval.skillName, msg.approval.params),
+                  plan:
+                    msg.approval.plan ??
+                    humanizeSkillParams(msg.approval.skillName, msg.approval.params),
                   status: msg.approval.status === 'pending'
                     ? 'Proposed'
                     : msg.approval.status === 'approved'

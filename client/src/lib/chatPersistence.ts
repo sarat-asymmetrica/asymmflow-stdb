@@ -32,7 +32,9 @@ export async function persistMessage(conn: any, msg: ChatMessage): Promise<void>
       skillRequest: msg.approval
         ? JSON.stringify({
             skillName: msg.approval.skillName,
+            params: msg.approval.params,
             plan: msg.approval.plan,
+            actionId: (msg.approval as { actionId?: string }).actionId,
             status: msg.approval.status,
           })
         : '',
@@ -88,7 +90,15 @@ export function loadRecentMessages(
           try {
             const parsed = JSON.parse(m.skillRequest);
             // Guard: only attach if the parsed object looks like approval metadata.
-            return parsed.skillName ? parsed : undefined;
+            return parsed.skillName
+              ? {
+                  skillName: parsed.skillName,
+                  params: parsed.params ?? {},
+                  plan: parsed.plan,
+                  actionId: parsed.actionId,
+                  status: parsed.status,
+                }
+              : undefined;
           } catch {
             return undefined;
           }

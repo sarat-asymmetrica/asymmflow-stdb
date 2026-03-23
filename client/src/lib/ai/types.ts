@@ -31,11 +31,15 @@ export interface ChatMessage {
   approval?: {
     /** Machine name of the skill being proposed. */
     skillName: string;
+    /** Structured parameters that will be passed to the skill executor. */
+    params?: Record<string, unknown>;
     /**
      * Human-readable description of what the skill will do,
      * shown in the approval card before the user clicks "Approve".
      */
     plan: string;
+    /** Optional server-side AI action id used for durable approval audit. */
+    actionId?: string;
     status: 'Proposed' | 'Approved' | 'Executed' | 'Rejected' | 'Failed';
   };
 

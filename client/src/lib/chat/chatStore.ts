@@ -5,6 +5,8 @@ import { writable, derived, get } from 'svelte/store';
 export interface StoredMessageApproval {
   skillName: string;
   params: Record<string, unknown>;
+  plan?: string;
+  actionId?: string;
   status: 'pending' | 'approved' | 'rejected';
 }
 
