@@ -6,7 +6,8 @@
   import ButlerAvatar from './ButlerAvatar.svelte';
   import { AIClient, loadConfig, extractSkillBlock } from '../ai/client';
   import { buildBusinessState, buildSystemPrompt } from '../ai/context';
-  import { currentMember, parties, moneyEvents, chatMessages, aiMemories, identity, aiActions, getConnection } from '../db';
+  import { evaluateAlerts, sortAlerts } from '../business/alertSystem';
+  import { currentMember, parties, pipelines, moneyEvents, chatMessages, aiMemories, identity, aiActions, getConnection } from '../db';
   import { persistMessage } from '../chatPersistence';
   import TransitionCard from '../components/TransitionCard.svelte';
   import { toast } from '../stores';
@@ -51,6 +52,7 @@
   type ProactiveBriefingPrefs = {
     enabled: boolean;
     snoozedUntil?: string;
+    intensity: 'quiet' | 'standard' | 'aggressive';
   };
 
   // ── Offline / demo-mode detection ─────────────────────────────────────────────
@@ -94,7 +96,7 @@
   );
 
   // Briefing action chips
-  const BRIEFING_ACTIONS = [
+  const DEFAULT_BRIEFING_ACTIONS = [
     { label: 'Morning brief', prompt: 'Give me a morning briefing summary' },
     { label: 'Chase overdue', prompt: 'Chase overdue payments' },
     { label: 'Create quotation', prompt: 'Create a quotation' },
@@ -106,14 +108,15 @@
   function loadProactiveBriefingPrefs(): ProactiveBriefingPrefs {
     try {
       const raw = localStorage.getItem(PROACTIVE_BRIEFING_PREFS_KEY);
-      if (!raw) return { enabled: true };
+      if (!raw) return { enabled: true, intensity: 'standard' };
       const parsed = JSON.parse(raw) as Partial<ProactiveBriefingPrefs>;
       return {
         enabled: parsed.enabled ?? true,
         snoozedUntil: parsed.snoozedUntil,
+        intensity: parsed.intensity ?? 'standard',
       };
     } catch {
-      return { enabled: true };
+      return { enabled: true, intensity: 'standard' };
     }
   }
 
@@ -143,14 +146,69 @@
     if (proactiveBriefingPrefs.snoozedUntil && proactiveBriefingPrefs.snoozedUntil > startOfDay()) {
       return `Snoozed until ${proactiveBriefingPrefs.snoozedUntil}`;
     }
-    return 'Active';
+    return `${proactiveBriefingPrefs.intensity} mode`;
+  });
+
+  let proactiveAlerts = $derived.by(() => {
+    const alerts = evaluateAlerts({
+      parties: $parties as never,
+      moneyEvents: $moneyEvents as never,
+      pipelines: $pipelines as never,
+      nowMicros: BigInt(Date.now()) * 1000n,
+    });
+    return sortAlerts(alerts);
+  });
+
+  let proactiveActionChips = $derived.by(() => {
+    const actions = [...DEFAULT_BRIEFING_ACTIONS];
+    const seen = new Set(actions.map((action) => action.label));
+
+    for (const alert of proactiveAlerts.slice(0, proactiveBriefingPrefs.intensity === 'aggressive' ? 3 : 2)) {
+      let action: { label: string; prompt: string } | null = null;
+      if (alert.category === 'finance') {
+        action = {
+          label: alert.severity === 'critical' ? 'Review cash risk' : 'Review collections',
+          prompt: 'Summarize the most urgent finance alerts and tell me what to act on first',
+        };
+      } else if (alert.category === 'crm') {
+        action = {
+          label: 'Review stale deals',
+          prompt: 'Show me stale pipeline follow-ups and what needs attention',
+        };
+      } else if (alert.category === 'operations') {
+        action = {
+          label: 'Check fulfilment',
+          prompt: 'Show me the operational risks and fulfilment pressure',
+        };
+      }
+
+      if (action && !seen.has(action.label)) {
+        seen.add(action.label);
+        actions.push(action);
+      }
+    }
+
+    return actions.slice(0, proactiveBriefingPrefs.intensity === 'quiet' ? 3 : proactiveBriefingPrefs.intensity === 'standard' ? 4 : 5);
   });
 
   function buildProactiveBriefingContent() {
     const state = buildBusinessState();
     if (state.isMockData) return null;
 
-    const lines = ['Daily proactive briefing from Butler:'];
+    const lines = [`Daily proactive briefing from Butler (${proactiveBriefingPrefs.intensity} mode):`];
+    const focusAlerts = proactiveAlerts.slice(
+      0,
+      proactiveBriefingPrefs.intensity === 'quiet' ? 1 : proactiveBriefingPrefs.intensity === 'standard' ? 2 : 4,
+    );
+
+    if (focusAlerts.length > 0) {
+      lines.push('');
+      lines.push('Priority signals:');
+      for (const alert of focusAlerts) {
+        lines.push(`- [${alert.severity.toUpperCase()}] ${alert.title}: ${alert.message}`);
+      }
+    }
+
     if (state.topOverdueCustomers.length > 0) {
       const lead = state.topOverdueCustomers[0];
       lines.push(
@@ -165,7 +223,15 @@
     if (state.activeOrderCount > 0) {
       lines.push(`- Fulfilment pressure: ${state.activeOrderCount} active orders need operational follow-through.`);
     }
-    lines.push('Suggested next asks: "Give me a morning briefing summary", "Chase overdue payments", or "Show order fulfilment risks".');
+    if (proactiveBriefingPrefs.intensity !== 'quiet' && state.overdueCustomerCount > 0) {
+      lines.push(`- Collections picture: ${state.overdueCustomerCount} customer account${state.overdueCustomerCount === 1 ? '' : 's'} currently carry overdue exposure.`);
+    }
+    if (proactiveBriefingPrefs.intensity === 'aggressive' && focusAlerts.length === 0) {
+      lines.push('- No rule-based alerts are currently firing, so the system is defaulting to watchlist mode.');
+    }
+
+    const suggestedPrompts = proactiveActionChips.slice(0, 3).map((action) => `"${action.prompt}"`);
+    lines.push(`Suggested next asks: ${suggestedPrompts.join(', ')}.`);
     return lines.join('\n');
   }
 
@@ -211,9 +277,19 @@
     saveProactiveBriefingPrefs();
     toast.success(
       proactiveBriefingPrefs.enabled
-        ? 'Daily Butler briefings enabled.'
+        ? `Daily Butler briefings enabled in ${proactiveBriefingPrefs.intensity} mode.`
         : 'Daily Butler briefings paused.'
     );
+  }
+
+  function setProactiveBriefingIntensity(intensity: 'quiet' | 'standard' | 'aggressive'): void {
+    proactiveBriefingPrefs = {
+      ...proactiveBriefingPrefs,
+      intensity,
+      enabled: true,
+    };
+    saveProactiveBriefingPrefs();
+    toast.success(`Daily Butler briefings switched to ${intensity} mode.`);
   }
 
   function snoozeProactiveBriefings(): void {
@@ -916,7 +992,7 @@
 
           <!-- Action chips -->
           <div class="briefing-actions">
-            {#each BRIEFING_ACTIONS as action}
+            {#each proactiveActionChips as action}
               <button
                 class="briefing-action-chip"
                 type="button"
@@ -929,6 +1005,32 @@
           </div>
 
           <div class="briefing-controls">
+            <div class="briefing-intensity-group" role="group" aria-label="Briefing intensity">
+              <button
+                class="briefing-intensity-btn"
+                class:is-active={proactiveBriefingPrefs.intensity === 'quiet'}
+                type="button"
+                onclick={() => setProactiveBriefingIntensity('quiet')}
+              >
+                Quiet
+              </button>
+              <button
+                class="briefing-intensity-btn"
+                class:is-active={proactiveBriefingPrefs.intensity === 'standard'}
+                type="button"
+                onclick={() => setProactiveBriefingIntensity('standard')}
+              >
+                Standard
+              </button>
+              <button
+                class="briefing-intensity-btn"
+                class:is-active={proactiveBriefingPrefs.intensity === 'aggressive'}
+                type="button"
+                onclick={() => setProactiveBriefingIntensity('aggressive')}
+              >
+                Aggressive
+              </button>
+            </div>
             <button
               class="briefing-control-btn"
               type="button"
@@ -1453,6 +1555,47 @@
     gap: var(--sp-5);
     padding-top: var(--sp-5);
     border-top: 1px solid rgba(91, 74, 58, 0.08);
+  }
+
+  .briefing-intensity-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 999px;
+    background: rgba(91, 74, 58, 0.06);
+    border: 1px solid rgba(91, 74, 58, 0.08);
+  }
+
+  .briefing-intensity-btn {
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-45);
+    background: transparent;
+    border: none;
+    border-radius: 999px;
+    padding: var(--sp-4) var(--sp-8);
+    cursor: pointer;
+    transition:
+      color var(--dur-fast) var(--ease-out),
+      background var(--dur-fast) var(--ease-out);
+  }
+
+  .briefing-intensity-btn.is-active {
+    background: rgba(198, 146, 65, 0.16);
+    color: #7a5518;
+  }
+
+  .briefing-intensity-btn:hover {
+    color: var(--ink);
+  }
+
+  .briefing-intensity-btn:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
   }
 
   .briefing-action-chip {
