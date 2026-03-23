@@ -48,6 +48,10 @@
   let hoveredConvId = $state<string | null>(null);
   let offlineBannerDismissed = $state(false);
   let briefingCollapsed = $state(false);
+  type ProactiveBriefingPrefs = {
+    enabled: boolean;
+    snoozedUntil?: string;
+  };
 
   // ── Offline / demo-mode detection ─────────────────────────────────────────────
   let isOffline = $derived(
@@ -97,11 +101,50 @@
   ];
 
   const PROACTIVE_BRIEFING_KEY = 'asymmflow_proactive_briefing';
+  const PROACTIVE_BRIEFING_PREFS_KEY = 'asymmflow_proactive_briefing_prefs';
+
+  function loadProactiveBriefingPrefs(): ProactiveBriefingPrefs {
+    try {
+      const raw = localStorage.getItem(PROACTIVE_BRIEFING_PREFS_KEY);
+      if (!raw) return { enabled: true };
+      const parsed = JSON.parse(raw) as Partial<ProactiveBriefingPrefs>;
+      return {
+        enabled: parsed.enabled ?? true,
+        snoozedUntil: parsed.snoozedUntil,
+      };
+    } catch {
+      return { enabled: true };
+    }
+  }
+
+  let proactiveBriefingPrefs = $state<ProactiveBriefingPrefs>(loadProactiveBriefingPrefs());
+
+  function saveProactiveBriefingPrefs(): void {
+    localStorage.setItem(PROACTIVE_BRIEFING_PREFS_KEY, JSON.stringify(proactiveBriefingPrefs));
+  }
 
   function proactiveBriefingStorageKey(identityValue: unknown, date = new Date()): string {
     const day = date.toISOString().slice(0, 10);
     return `${PROACTIVE_BRIEFING_KEY}:${String(identityValue)}:${day}`;
   }
+
+  function startOfDay(date = new Date()): string {
+    return date.toISOString().slice(0, 10);
+  }
+
+  function addDays(date: Date, days: number): Date {
+    const next = new Date(date);
+    next.setDate(next.getDate() + days);
+    return next;
+  }
+
+  let proactiveBriefingStatus = $derived.by(() => {
+    if (!proactiveBriefingPrefs.enabled) return 'Disabled';
+    if (proactiveBriefingPrefs.snoozedUntil && proactiveBriefingPrefs.snoozedUntil > startOfDay()) {
+      return `Snoozed until ${proactiveBriefingPrefs.snoozedUntil}`;
+    }
+    return 'Active';
+  });
 
   function buildProactiveBriefingContent() {
     const state = buildBusinessState();
@@ -124,6 +167,87 @@
     }
     lines.push('Suggested next asks: "Give me a morning briefing summary", "Chase overdue payments", or "Show order fulfilment risks".');
     return lines.join('\n');
+  }
+
+  function canIssueProactiveBriefing(): boolean {
+    if (!proactiveBriefingPrefs.enabled) return false;
+    if (!proactiveBriefingPrefs.snoozedUntil) return true;
+    return proactiveBriefingPrefs.snoozedUntil <= startOfDay();
+  }
+
+  function issueProactiveBriefing(options?: { force?: boolean }): boolean {
+    const currentIdentity = get(identity);
+    if (!currentIdentity || isOffline) return false;
+    if (!options?.force && !canIssueProactiveBriefing()) return false;
+
+    const content = buildProactiveBriefingContent();
+    if (!content) return false;
+
+    const storageKey = proactiveBriefingStorageKey(currentIdentity);
+    if (!options?.force && localStorage.getItem(storageKey)) return false;
+
+    const proactiveMessage: StoredMessage = {
+      id: uid(),
+      role: 'assistant',
+      content,
+      timestamp: Date.now(),
+    };
+
+    addMessage(proactiveMessage);
+    const conn = getConnection();
+    if (conn) {
+      void persistMessage(conn, proactiveMessage as AIChatMessage);
+    }
+    localStorage.setItem(storageKey, proactiveMessage.id);
+    return true;
+  }
+
+  function toggleProactiveBriefings(): void {
+    proactiveBriefingPrefs = {
+      ...proactiveBriefingPrefs,
+      enabled: !proactiveBriefingPrefs.enabled,
+      snoozedUntil: !proactiveBriefingPrefs.enabled ? undefined : proactiveBriefingPrefs.snoozedUntil,
+    };
+    saveProactiveBriefingPrefs();
+    toast.success(
+      proactiveBriefingPrefs.enabled
+        ? 'Daily Butler briefings enabled.'
+        : 'Daily Butler briefings paused.'
+    );
+  }
+
+  function snoozeProactiveBriefings(): void {
+    const tomorrow = startOfDay(addDays(new Date(), 1));
+    proactiveBriefingPrefs = {
+      ...proactiveBriefingPrefs,
+      enabled: true,
+      snoozedUntil: tomorrow,
+    };
+    saveProactiveBriefingPrefs();
+    toast.success(`Daily Butler briefing snoozed until ${tomorrow}.`);
+  }
+
+  function clearProactiveBriefingForToday(): void {
+    const currentIdentity = get(identity);
+    if (!currentIdentity) return;
+    localStorage.removeItem(proactiveBriefingStorageKey(currentIdentity));
+  }
+
+  function rerunProactiveBriefing(): void {
+    clearProactiveBriefingForToday();
+    const issued = issueProactiveBriefing({ force: true });
+    if (issued) {
+      toast.success('Fresh Butler briefing added to the conversation.');
+    } else {
+      toast.warning('Unable to generate a proactive briefing right now.');
+    }
+  }
+
+  function dismissProactiveBriefingToday(): void {
+    const currentIdentity = get(identity);
+    if (!currentIdentity) return;
+    localStorage.setItem(proactiveBriefingStorageKey(currentIdentity), 'dismissed');
+    toast.success("Today's proactive Butler briefing dismissed.");
   }
 
   // ── Auto-scroll ───────────────────────────────────────────────────────────────
@@ -170,26 +294,7 @@
   $effect(() => {
     const currentIdentity = $identity;
     if (!stdbHistoryLoaded || !currentIdentity || isOffline) return;
-
-    const storageKey = proactiveBriefingStorageKey(currentIdentity);
-    if (localStorage.getItem(storageKey)) return;
-
-    const content = buildProactiveBriefingContent();
-    if (!content) return;
-
-    const proactiveMessage: StoredMessage = {
-      id: uid(),
-      role: 'assistant',
-      content,
-      timestamp: Date.now(),
-    };
-
-    addMessage(proactiveMessage);
-    const conn = getConnection();
-    if (conn) {
-      void persistMessage(conn, proactiveMessage as AIChatMessage);
-    }
-    localStorage.setItem(storageKey, proactiveMessage.id);
+    issueProactiveBriefing();
   });
 
   async function scrollToBottom() {
@@ -745,6 +850,10 @@
             <span class="briefing-org">PH TRADING</span>
           </div>
         </div>
+        <div class="briefing-header-actions">
+          <span class="briefing-status-pill" data-state={proactiveBriefingPrefs.enabled ? (proactiveBriefingPrefs.snoozedUntil && proactiveBriefingPrefs.snoozedUntil > startOfDay() ? 'snoozed' : 'active') : 'disabled'}>
+            {proactiveBriefingStatus}
+          </span>
         <button
           class="briefing-collapse-btn"
           aria-label={briefingCollapsed ? 'Expand briefing' : 'Collapse briefing'}
@@ -760,6 +869,7 @@
             {/if}
           </svg>
         </button>
+        </div>
       </div>
 
       {#if !briefingCollapsed}
@@ -816,6 +926,38 @@
                 {action.label}
               </button>
             {/each}
+          </div>
+
+          <div class="briefing-controls">
+            <button
+              class="briefing-control-btn"
+              type="button"
+              onclick={toggleProactiveBriefings}
+            >
+              {proactiveBriefingPrefs.enabled ? 'Pause daily briefing' : 'Enable daily briefing'}
+            </button>
+            <button
+              class="briefing-control-btn"
+              type="button"
+              onclick={snoozeProactiveBriefings}
+              disabled={!proactiveBriefingPrefs.enabled}
+            >
+              Snooze until tomorrow
+            </button>
+            <button
+              class="briefing-control-btn"
+              type="button"
+              onclick={rerunProactiveBriefing}
+            >
+              Re-run briefing now
+            </button>
+            <button
+              class="briefing-control-btn briefing-control-btn-muted"
+              type="button"
+              onclick={dismissProactiveBriefingToday}
+            >
+              Dismiss today
+            </button>
           </div>
         </div>
       {/if}
@@ -1156,6 +1298,12 @@
     border-bottom: 1px solid var(--ink-06);
   }
 
+  .briefing-header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+  }
+
   /* No bottom border when collapsed */
   .briefing-card.collapsed .briefing-header {
     border-bottom-color: transparent;
@@ -1198,6 +1346,33 @@
     font-weight: 400;
     letter-spacing: 0.15em;
     color: var(--ink-40);
+  }
+
+  .briefing-status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 24px;
+    padding: 0 var(--sp-8);
+    border-radius: 999px;
+    background: rgba(134, 160, 119, 0.14);
+    color: #55724b;
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .briefing-status-pill[data-state='snoozed'] {
+    background: rgba(198, 146, 65, 0.14);
+    color: #8b6221;
+  }
+
+  .briefing-status-pill[data-state='disabled'] {
+    background: rgba(104, 94, 82, 0.1);
+    color: var(--ink-45);
   }
 
   .briefing-collapse-btn {
@@ -1272,6 +1447,14 @@
     gap: var(--sp-5);
   }
 
+  .briefing-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-5);
+    padding-top: var(--sp-5);
+    border-top: 1px solid rgba(91, 74, 58, 0.08);
+  }
+
   .briefing-action-chip {
     font-family: var(--font-ui);
     font-size: 10px;
@@ -1313,6 +1496,47 @@
   .briefing-action-chip:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+
+  .briefing-control-btn {
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-55);
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(91, 74, 58, 0.1);
+    border-radius: 999px;
+    padding: var(--sp-4) var(--sp-10);
+    cursor: pointer;
+    transition:
+      color var(--dur-fast) var(--ease-out),
+      border-color var(--dur-fast) var(--ease-out),
+      background var(--dur-fast) var(--ease-out),
+      transform var(--dur-instant) var(--ease-out);
+  }
+
+  .briefing-control-btn:hover:not(:disabled) {
+    color: var(--ink);
+    border-color: rgba(198, 146, 65, 0.28);
+    background: rgba(255, 250, 242, 0.92);
+    transform: translateY(-1px);
+  }
+
+  .briefing-control-btn:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+
+  .briefing-control-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .briefing-control-btn-muted {
+    color: var(--ink-40);
   }
 
   /* ── Zone 2: Message list ── */
