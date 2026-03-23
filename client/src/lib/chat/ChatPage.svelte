@@ -191,6 +191,36 @@
     return actions.slice(0, proactiveBriefingPrefs.intensity === 'quiet' ? 3 : proactiveBriefingPrefs.intensity === 'standard' ? 4 : 5);
   });
 
+  let proactivePriorityActions = $derived.by(() => {
+    return proactiveAlerts.slice(
+      0,
+      proactiveBriefingPrefs.intensity === 'quiet' ? 1 : proactiveBriefingPrefs.intensity === 'standard' ? 2 : 3,
+    ).map((alert) => {
+      let prompt = `Summarize this alert and recommend the next action: ${alert.title} - ${alert.message}`;
+
+      if (alert.category === 'finance') {
+        prompt = alert.severity === 'critical'
+          ? `Review this finance risk and recommend the next action with urgency: ${alert.message}`
+          : `Review this finance alert and tell me the best next step: ${alert.message}`;
+      } else if (alert.category === 'crm') {
+        prompt = `Review this pipeline alert and guide me through the next follow-up action: ${alert.message}`;
+      } else if (alert.category === 'operations') {
+        prompt = `Review this operations alert and tell me what needs action first: ${alert.message}`;
+      } else if (alert.category === 'compliance') {
+        prompt = `Review this compliance alert and explain the safest next action: ${alert.message}`;
+      }
+
+      return {
+        id: alert.id,
+        severity: alert.severity,
+        title: alert.title,
+        message: alert.message,
+        cta: alert.actionLabel ?? 'Open',
+        prompt,
+      };
+    });
+  });
+
   function buildProactiveBriefingContent() {
     const state = buildBusinessState();
     if (state.isMockData) return null;
@@ -1004,6 +1034,27 @@
             {/each}
           </div>
 
+          {#if proactivePriorityActions.length > 0}
+            <div class="briefing-priority-deck">
+              {#each proactivePriorityActions as action}
+                <button
+                  class="briefing-priority-card"
+                  data-severity={action.severity}
+                  type="button"
+                  onclick={() => handleSend(action.prompt)}
+                  disabled={isThinking}
+                >
+                  <div class="priority-card-topline">
+                    <span class="priority-card-severity">{action.severity}</span>
+                    <span class="priority-card-cta">{action.cta}</span>
+                  </div>
+                  <span class="priority-card-title">{action.title}</span>
+                  <span class="priority-card-message">{action.message}</span>
+                </button>
+              {/each}
+            </div>
+          {/if}
+
           <div class="briefing-controls">
             <div class="briefing-intensity-group" role="group" aria-label="Briefing intensity">
               <button
@@ -1555,6 +1606,95 @@
     gap: var(--sp-5);
     padding-top: var(--sp-5);
     border-top: 1px solid rgba(91, 74, 58, 0.08);
+  }
+
+  .briefing-priority-deck {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: var(--sp-8);
+  }
+
+  .briefing-priority-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-4);
+    padding: var(--sp-10);
+    border: 1px solid rgba(91, 74, 58, 0.08);
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.58);
+    text-align: left;
+    cursor: pointer;
+    transition:
+      border-color var(--dur-fast) var(--ease-out),
+      box-shadow var(--dur-fast) var(--ease-out),
+      transform var(--dur-instant) var(--ease-out);
+  }
+
+  .briefing-priority-card:hover:not(:disabled) {
+    border-color: rgba(198, 146, 65, 0.24);
+    box-shadow: var(--shadow-neu-btn);
+    transform: translateY(-1px);
+  }
+
+  .briefing-priority-card:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+
+  .briefing-priority-card:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .briefing-priority-card[data-severity='critical'] {
+    border-color: rgba(196, 121, 107, 0.18);
+    background: rgba(249, 236, 232, 0.82);
+  }
+
+  .briefing-priority-card[data-severity='warning'] {
+    border-color: rgba(198, 146, 65, 0.18);
+    background: rgba(251, 245, 232, 0.85);
+  }
+
+  .priority-card-topline {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-5);
+  }
+
+  .priority-card-severity,
+  .priority-card-cta {
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .priority-card-severity {
+    color: var(--ink-45);
+  }
+
+  .priority-card-cta {
+    color: var(--gold);
+  }
+
+  .priority-card-title {
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.35;
+  }
+
+  .priority-card-message {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--ink-60);
+    line-height: 1.55;
   }
 
   .briefing-intensity-group {
