@@ -561,10 +561,10 @@ ${skillList || '  (no executable skills for this role)'}
 ${viewOnlyList}
 
 SKILL INVOCATION PROTOCOL
-When you need to perform a data action or run a skill, include a JSON block
-at the END of your reply in exactly this format — no markdown fences, just the block:
+When you need to perform a data action or run a skill, include EXACTLY ONE
+tagged skill block anywhere in your reply using this format:
 
-{"skill":"<skill_name>","params":{"<param1>":"<value1>","<param2>":42}}
+<asymmflow-skill>{"skill":"<skill_name>","params":{"<param1>":"<value1>","<param2>":42}}</asymmflow-skill>
 
 Rules:
   1. Only use skill names from the list above.
@@ -575,6 +575,7 @@ Rules:
   6. Numeric IDs must be numbers (not strings) in the JSON.
   7. BHD amounts must be expressed in fils (integer, multiply BHD × 1000).
      Example: BHD 1,450.500 → 1450500
+  8. Do not wrap the tagged block in prose like "here is the JSON". Just include it naturally.
 
 BEHAVIOURAL GUIDELINES
   • Be concise. PH Trading staff are busy — no lengthy preambles.

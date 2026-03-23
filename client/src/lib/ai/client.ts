@@ -15,9 +15,9 @@
  *   data: [DONE]
  *
  * Skill extraction:
- *   After a non-streaming completion, the client scans the content for a bare
- *   JSON object matching {"skill":"...","params":{...}} and returns it in
- *   AIResponse.skillRequest, stripping the block from the visible content.
+ *   After a non-streaming completion, the client scans the content for a
+ *   delimited skill payload and returns it in AIResponse.skillRequest,
+ *   stripping the block from the visible content.
  */
 
 import type { AIConfig, AIProvider, AIResponse, ChatMessage } from './types';
@@ -107,8 +107,36 @@ interface SkillBlock {
   params: Record<string, unknown>;
 }
 
+const SKILL_TAG = 'asymmflow-skill';
+
+function parseSkillPayload(rawPayload: string): SkillBlock | null {
+  try {
+    const parsed = JSON.parse(rawPayload) as unknown;
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      'skill' in parsed &&
+      'params' in parsed &&
+      typeof (parsed as SkillBlock).skill === 'string' &&
+      typeof (parsed as SkillBlock).params === 'object' &&
+      (parsed as SkillBlock).params !== null
+    ) {
+      return parsed as SkillBlock;
+    }
+  } catch {
+    // Invalid payload; treat as plain text.
+  }
+  return null;
+}
+
 /**
- * Scan `content` for a bare JSON object with `skill` and `params` keys.
+ * Scan `content` for a structured skill block.
+ *
+ * Supported formats, in order:
+ *   1. <asymmflow-skill>{...}</asymmflow-skill>
+ *   2. ```asymmflow-skill ... ```
+ *   3. Legacy trailing bare JSON object at end of reply
+ *
  * Returns the parsed block and the cleaned content (block removed) when found.
  * Returns null for skillBlock when no invocation is present.
  */
@@ -116,30 +144,57 @@ function extractSkillBlock(content: string): {
   cleanContent: string;
   skillBlock: SkillBlock | null;
 } {
-  // Match a JSON object at end-of-content (possibly preceded by whitespace/newlines).
-  // Pattern: optional whitespace, then { ... } containing "skill" key.
-  const jsonPattern = /\s*(\{"skill"\s*:[\s\S]*\})\s*$/;
-  const match = jsonPattern.exec(content);
+  const taggedPattern = new RegExp(
+    `<${SKILL_TAG}>\\s*([\\s\\S]*?)\\s*<\\/${SKILL_TAG}>`,
+    'gi'
+  );
+  let taggedMatch: RegExpExecArray | null = null;
+  for (const match of content.matchAll(taggedPattern)) {
+    taggedMatch = match;
+  }
 
-  if (!match) {
+  if (taggedMatch) {
+    const skillBlock = parseSkillPayload(taggedMatch[1]);
+    if (skillBlock) {
+      const cleanContent = (
+        content.slice(0, taggedMatch.index) +
+        content.slice((taggedMatch.index ?? 0) + taggedMatch[0].length)
+      ).trim();
+      return { cleanContent, skillBlock };
+    }
+  }
+
+  const fencedPattern = new RegExp(
+    `\\\`\\\`\\\`${SKILL_TAG}\\s*([\\s\\S]*?)\\s*\\\`\\\`\\\``,
+    'gi'
+  );
+  let fencedMatch: RegExpExecArray | null = null;
+  for (const match of content.matchAll(fencedPattern)) {
+    fencedMatch = match;
+  }
+
+  if (fencedMatch) {
+    const skillBlock = parseSkillPayload(fencedMatch[1]);
+    if (skillBlock) {
+      const cleanContent = (
+        content.slice(0, fencedMatch.index) +
+        content.slice((fencedMatch.index ?? 0) + fencedMatch[0].length)
+      ).trim();
+      return { cleanContent, skillBlock };
+    }
+  }
+
+  const jsonPattern = /\s*(\{"skill"\s*:[\s\S]*\})\s*$/;
+  const legacyMatch = jsonPattern.exec(content);
+
+  if (!legacyMatch) {
     return { cleanContent: content.trimEnd(), skillBlock: null };
   }
 
-  try {
-    const parsed = JSON.parse(match[1]) as unknown;
-    if (
-      typeof parsed === 'object' &&
-      parsed !== null &&
-      'skill' in parsed &&
-      'params' in parsed &&
-      typeof (parsed as SkillBlock).skill === 'string'
-    ) {
-      const block = parsed as SkillBlock;
-      const cleanContent = content.slice(0, match.index).trimEnd();
-      return { cleanContent, skillBlock: block };
-    }
-  } catch {
-    // Not valid JSON — leave content untouched.
+  const legacyBlock = parseSkillPayload(legacyMatch[1]);
+  if (legacyBlock) {
+    const cleanContent = content.slice(0, legacyMatch.index).trimEnd();
+    return { cleanContent, skillBlock: legacyBlock };
   }
 
   return { cleanContent: content.trimEnd(), skillBlock: null };
