@@ -384,6 +384,13 @@ function formatRelativeTime(timestamp: any): string {
  */
 export function buildMemoryContext(memories: any[]): string {
   if (!memories || memories.length === 0) return '';
+  const describeMemory = (memory: any, includeSubject = true) => {
+    const prefix = `[#${String(memory.id)}]`;
+    const subject = includeSubject ? ` ${memory.subject}:` : '';
+    const confidence =
+      typeof memory.confidence === 'number' ? ` (confidence ${memory.confidence}%)` : '';
+    return `${prefix}${subject} ${memory.content}${confidence}`;
+  };
   const grouped: Record<string, any[]> = {};
   for (const mem of memories) {
     const cat = mem.category || 'general';
@@ -393,19 +400,19 @@ export function buildMemoryContext(memories: any[]): string {
   let section = '\n\n=== THINGS I REMEMBER (shared team knowledge) ===\n';
   if (grouped['party_pattern']?.length) {
     section += '\nCustomer/Supplier Patterns:\n';
-    for (const m of grouped['party_pattern']) section += `- ${m.subject}: ${m.content}\n`;
+    for (const m of grouped['party_pattern']) section += `- ${describeMemory(m)}\n`;
   }
   if (grouped['user_preference']?.length) {
     section += '\nUser Preferences:\n';
-    for (const m of grouped['user_preference']) section += `- ${m.subject}: ${m.content}\n`;
+    for (const m of grouped['user_preference']) section += `- ${describeMemory(m)}\n`;
   }
   if (grouped['business_insight']?.length) {
     section += '\nBusiness Insights:\n';
-    for (const m of grouped['business_insight']) section += `- ${m.content}\n`;
+    for (const m of grouped['business_insight']) section += `- ${describeMemory(m, false)}\n`;
   }
   if (grouped['workflow_note']?.length) {
     section += '\nActive Workflow Notes:\n';
-    for (const m of grouped['workflow_note']) section += `- ${m.subject}: ${m.content}\n`;
+    for (const m of grouped['workflow_note']) section += `- ${describeMemory(m)}\n`;
   }
   return section;
 }

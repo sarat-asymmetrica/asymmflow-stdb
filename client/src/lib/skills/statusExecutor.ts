@@ -12,8 +12,48 @@
 
 import type { SkillResult } from './types';
 import { get } from 'svelte/store';
-import { pipelines, getConnection } from '../db';
+import { pipelines, aiMemories, getConnection } from '../db';
 import { Timestamp } from 'spacetimedb';
+
+const VALID_MEMORY_CATEGORIES = new Set([
+  'user_preference',
+  'party_pattern',
+  'business_insight',
+  'workflow_note',
+]);
+
+function normalizeMemoryCategory(rawCategory: unknown): string {
+  return String(rawCategory ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+}
+
+async function waitForMemoryInsert(
+  previousIds: Set<bigint>,
+  matcher: (memory: { category: string; subject: string; content: string }) => boolean,
+  timeoutMs = 4000
+) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const next = get(aiMemories).find(
+      (memory) => !previousIds.has(memory.id) && matcher(memory)
+    );
+    if (next) return next;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error('Timed out waiting for AI memory to sync from the server.');
+}
+
+async function waitForMemoryDeletion(memoryId: bigint, timeoutMs = 4000): Promise<void> {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const stillExists = get(aiMemories).some((memory) => memory.id === memoryId);
+    if (!stillExists) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`Timed out waiting for memory #${memoryId} to be deleted.`);
+}
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
@@ -45,9 +85,14 @@ async function handleUpdatePipelineStatus(
     return { success: false, summary: `Pipeline #${pipelineId} not found.`, error: 'not_found' };
   }
 
-  const statusTag = String(newStatus);
-  const validStatuses = ['Draft', 'Active', 'InProgress', 'Won', 'Lost', 'OnHold'];
-  if (!validStatuses.includes(statusTag)) {
+  const requestedStatus = String(newStatus);
+  const statusTag =
+    requestedStatus === 'Won' ? 'Terminal' :
+    requestedStatus === 'Lost' ? 'Cancelled' :
+    requestedStatus === 'OnHold' ? 'InProgress' :
+    requestedStatus;
+  const validStatuses = ['Draft', 'Active', 'InProgress', 'Terminal', 'Cancelled', 'Won', 'Lost', 'OnHold'];
+  if (!validStatuses.includes(requestedStatus)) {
     return {
       success: false,
       summary: `newStatus must be one of: ${validStatuses.join(', ')}.`,
@@ -62,6 +107,18 @@ async function handleUpdatePipelineStatus(
       id: pipeline.id,
       partyId: pipeline.partyId,
       title: pipeline.title,
+      legacyYear: pipeline.legacyYear,
+      opportunityNumber: pipeline.opportunityNumber,
+      folderNumber: pipeline.folderNumber,
+      folderName: pipeline.folderName,
+      sfdcTitle: pipeline.sfdcTitle,
+      comment: pipeline.comment,
+      ehReference: pipeline.ehReference,
+      paymentTerms: pipeline.paymentTerms,
+      ownerName: pipeline.ownerName,
+      source: pipeline.source,
+      sourceNotes: pipeline.sourceNotes,
+      deliverySummary: pipeline.deliverySummary,
       newStatus: { tag: statusTag } as any,
       estimatedValueFils: pipeline.estimatedValueFils,
       winProbabilityBps: pipeline.winProbabilityBps,
@@ -116,7 +173,7 @@ async function handleRemember(
     return { success: false, summary: 'Not connected to database.', error: 'no_connection' };
   }
 
-  const category = params.category != null ? String(params.category).trim() : '';
+  const category = normalizeMemoryCategory(params.category);
   const subject  = params.subject  != null ? String(params.subject).trim()  : '';
   const content  = params.content  != null ? String(params.content).trim()  : '';
 
@@ -130,24 +187,54 @@ async function handleRemember(
     return { success: false, summary: 'content is required.', error: 'missing_param' };
   }
 
-  // The save_ai_memory reducer is not yet generated in STDB bindings.
-  // When it becomes available, replace this block with:
-  //   conn.reducers.saveAiMemory({ category, subject, content, confidence: 80, source: 'ai_observed' });
-  const reducers = conn.reducers as any;
-  if (typeof reducers.saveAiMemory !== 'function') {
+  if (!VALID_MEMORY_CATEGORIES.has(category)) {
     return {
       success: false,
-      summary: 'AI memory persistence is not yet available in this deployment.',
-      error: 'not_implemented',
+      summary:
+        'category must be one of: user_preference, party_pattern, business_insight, workflow_note.',
+      error: 'invalid_param',
     };
   }
 
   try {
-    reducers.saveAiMemory({ category, subject, content, confidence: 80, source: 'ai_observed' });
+    const reducers = conn.reducers as {
+      saveAiMemory?: (args: {
+        category: string;
+        subject: string;
+        content: string;
+        confidence: number;
+        source: string;
+      }) => void;
+    };
+    if (typeof reducers.saveAiMemory !== 'function') {
+      throw new Error('saveAiMemory reducer is unavailable on the current connection.');
+    }
+
+    const existingIds = new Set(get(aiMemories).map((memory) => memory.id));
+    reducers.saveAiMemory({
+      category,
+      subject,
+      content,
+      confidence: 80,
+      source: 'ai_observed',
+    });
+    const savedMemory = await waitForMemoryInsert(
+      existingIds,
+      (memory) =>
+        memory.category === category &&
+        memory.subject === subject &&
+        memory.content === content
+    );
+
     return {
       success: true,
-      summary: `Memory saved: [${category}] ${subject}.`,
-      data: { category, subject, content },
+      summary: `Memory #${savedMemory.id} saved: [${category}] ${subject}.`,
+      data: {
+        memoryId: String(savedMemory.id),
+        category,
+        subject,
+        content,
+      },
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -173,20 +260,17 @@ async function handleForget(
     return { success: false, summary: 'memoryId must be a positive integer.', error: 'invalid_param' };
   }
 
-  // The delete_ai_memory reducer is not yet generated in STDB bindings.
-  // When it becomes available, replace this block with:
-  //   conn.reducers.deleteAiMemory({ memoryId: BigInt(numericId) });
-  const reducers = conn.reducers as any;
-  if (typeof reducers.deleteAiMemory !== 'function') {
-    return {
-      success: false,
-      summary: 'AI memory deletion is not yet available in this deployment.',
-      error: 'not_implemented',
-    };
-  }
-
   try {
-    reducers.deleteAiMemory({ memoryId: BigInt(numericId) });
+    const reducers = conn.reducers as {
+      deleteAiMemory?: (args: { memoryId: bigint }) => void;
+    };
+    if (typeof reducers.deleteAiMemory !== 'function') {
+      throw new Error('deleteAiMemory reducer is unavailable on the current connection.');
+    }
+
+    const memoryId = BigInt(numericId);
+    reducers.deleteAiMemory({ memoryId });
+    await waitForMemoryDeletion(memoryId);
     return {
       success: true,
       summary: `Memory #${numericId} deleted.`,
