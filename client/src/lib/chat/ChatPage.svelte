@@ -827,6 +827,18 @@
   // ── Status line ───────────────────────────────────────────────────────────────
   let msgCount = $derived(messages.filter((m) => m.role !== 'system').length);
   let isConfigured = $derived(hasApiKey());
+  let commandRailTone = $derived(
+    isOffline ? 'demo' :
+    !isConfigured ? 'warning' :
+    isThinking ? 'thinking' :
+    'live'
+  );
+  let commandRailSummary = $derived.by(() => {
+    if (isOffline) return 'Demo workspace active. Connect maincloud for live operational truth.';
+    if (!isConfigured) return 'AI provider needs an API key before Butler can reason over live data.';
+    if (isThinking) return 'Butler is reasoning over live business context and pending actions.';
+    return `Conversation live with ${msgCount} thread item${msgCount === 1 ? '' : 's'} and durable approvals enabled.`;
+  });
 </script>
 
 <div class="chat-workspace" role="main" aria-label="AsymmFlow Chat">
@@ -1117,6 +1129,18 @@
     </div>
 
     <!-- ── Zone 2: Message thread ── -->
+    <div class="command-rail" data-tone={commandRailTone} aria-label="Chat command status">
+      <div class="command-rail-copy">
+        <span class="command-rail-label">Command Surface</span>
+        <span class="command-rail-summary">{commandRailSummary}</span>
+      </div>
+      <div class="command-rail-metrics" aria-hidden="true">
+        <span class="command-rail-chip">{isOffline ? 'Demo' : 'Live STDB'}</span>
+        <span class="command-rail-chip">{isConfigured ? 'AI Ready' : 'Config Needed'}</span>
+        <span class="command-rail-chip">{proactiveBriefingPrefs.intensity} briefing</span>
+      </div>
+    </div>
+
     <div
       class="message-list"
       bind:this={messageListEl}
@@ -1432,6 +1456,18 @@
     position: relative;
   }
 
+  .chat-page::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 220px;
+    background:
+      radial-gradient(circle at top left, rgba(198, 146, 65, 0.08), transparent 55%),
+      radial-gradient(circle at top right, rgba(134, 160, 119, 0.08), transparent 48%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
   /* ── Zone 1: Living Briefing Card ── */
   .briefing-card {
     flex-shrink: 0;
@@ -1441,6 +1477,80 @@
     box-shadow: var(--shadow-neu-raised);
     overflow: hidden;
     transition: box-shadow var(--dur-fast) var(--ease-out);
+    position: relative;
+    z-index: 1;
+  }
+
+  .command-rail {
+    margin: var(--sp-13) var(--sp-21) 0;
+    padding: var(--sp-8) var(--sp-13);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(91, 74, 58, 0.08);
+    background: rgba(255, 252, 248, 0.74);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-13);
+    position: relative;
+    z-index: 1;
+  }
+
+  .command-rail[data-tone='warning'] {
+    border-color: rgba(198, 146, 65, 0.2);
+    background: rgba(251, 245, 232, 0.88);
+  }
+
+  .command-rail[data-tone='thinking'] {
+    border-color: rgba(134, 160, 119, 0.18);
+    background: rgba(242, 247, 239, 0.88);
+  }
+
+  .command-rail[data-tone='demo'] {
+    border-color: rgba(196, 121, 107, 0.18);
+    background: rgba(249, 236, 232, 0.88);
+  }
+
+  .command-rail-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .command-rail-label {
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-40);
+  }
+
+  .command-rail-summary {
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--ink-60);
+    line-height: 1.5;
+  }
+
+  .command-rail-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--sp-5);
+  }
+
+  .command-rail-chip {
+    padding: var(--sp-3) var(--sp-8);
+    border-radius: 999px;
+    background: rgba(91, 74, 58, 0.06);
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-45);
+    white-space: nowrap;
   }
 
   .briefing-header {
@@ -1830,13 +1940,15 @@
     scroll-behavior: smooth;
     scrollbar-width: thin;
     scrollbar-color: var(--ink-12) transparent;
+    position: relative;
+    z-index: 1;
   }
 
   .message-list-inner {
     display: flex;
     flex-direction: column;
     gap: var(--sp-13);
-    padding: var(--sp-16) var(--sp-21) var(--sp-8);
+    padding: var(--sp-16) var(--sp-21) var(--sp-13);
     max-width: 840px;
     margin: 0 auto;
     width: 100%;

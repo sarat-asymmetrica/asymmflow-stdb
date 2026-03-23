@@ -20,11 +20,11 @@
   );
 
   const SUGGESTED_PROMPTS = [
-    'Who owes us the most?',
-    'Create a quotation',
-    'Chase overdue payments',
-    'Show my dashboard summary',
-    'Generate a statement',
+    { label: 'Top debtors', prompt: 'Who owes us the most?' },
+    { label: 'Quotation', prompt: 'Create a quotation' },
+    { label: 'Collections', prompt: 'Chase overdue payments' },
+    { label: 'Dashboard', prompt: 'Show my dashboard summary' },
+    { label: 'Statement', prompt: 'Generate a statement' },
   ];
 
   function send() {
@@ -70,14 +70,15 @@
   <!-- Quick-action chips — visible only on fresh conversation -->
   {#if showChips}
     <div class="chips-row" aria-label="Suggested prompts">
-      {#each SUGGESTED_PROMPTS as prompt}
+      {#each SUGGESTED_PROMPTS as item}
         <button
           class="chip"
           type="button"
           disabled={isDisabled}
-          onclick={() => handleChipClick(prompt)}
+          onclick={() => handleChipClick(item.prompt)}
         >
-          {prompt}
+          <span class="chip-label">{item.label}</span>
+          <span class="chip-prompt">{item.prompt}</span>
         </button>
       {/each}
     </div>
@@ -136,6 +137,8 @@
   <p class="hint" aria-live="polite">
     {#if isFocused}
       <span>Enter to send &nbsp;&middot;&nbsp; Ctrl+Enter for new line</span>
+    {:else if !isDisabled}
+      <span>Live chat-first ERP/CRM workflow with approvals, memory, and proactive guidance</span>
     {/if}
   </p>
 </div>
@@ -151,13 +154,17 @@
 
   /* ── Suggested prompt chips ── */
   .chips-row {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: var(--sp-5);
     margin-bottom: var(--sp-8);
   }
 
   .chip {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
     font-family: var(--font-ui);
     font-size: var(--text-xs);
     font-weight: 400;
@@ -169,11 +176,25 @@
     cursor: pointer;
     box-shadow: var(--shadow-neu-btn);
     line-height: 1.4;
-    white-space: nowrap;
+    white-space: normal;
+    text-align: left;
     transition:
       box-shadow var(--dur-fast) var(--ease-out),
       color var(--dur-fast) var(--ease-out),
       transform var(--dur-instant) var(--ease-out);
+  }
+
+  .chip-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+
+  .chip-prompt {
+    color: var(--ink-60);
+    line-height: 1.45;
   }
 
   .chip:hover:not(:disabled) {
@@ -323,5 +344,6 @@
     margin: var(--sp-4) 0 0;
     text-align: center;
     min-height: 14px;
+    text-transform: uppercase;
   }
 </style>
