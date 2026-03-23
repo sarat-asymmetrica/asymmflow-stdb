@@ -96,6 +96,36 @@
     { label: 'Create quotation', prompt: 'Create a quotation' },
   ];
 
+  const PROACTIVE_BRIEFING_KEY = 'asymmflow_proactive_briefing';
+
+  function proactiveBriefingStorageKey(identityValue: unknown, date = new Date()): string {
+    const day = date.toISOString().slice(0, 10);
+    return `${PROACTIVE_BRIEFING_KEY}:${String(identityValue)}:${day}`;
+  }
+
+  function buildProactiveBriefingContent() {
+    const state = buildBusinessState();
+    if (state.isMockData) return null;
+
+    const lines = ['Daily proactive briefing from Butler:'];
+    if (state.topOverdueCustomers.length > 0) {
+      const lead = state.topOverdueCustomers[0];
+      lines.push(
+        `- Collections pressure: ${lead.name} leads overdue exposure at BHD ${lead.outstandingBHD} (${lead.overdueDays} days overdue).`
+      );
+    }
+    if (state.openPipelineCount > 0) {
+      lines.push(
+        `- Commercial pipeline: ${state.openPipelineCount} open deals worth ${formatBHDFull(state.pipelineValueFils)}.`
+      );
+    }
+    if (state.activeOrderCount > 0) {
+      lines.push(`- Fulfilment pressure: ${state.activeOrderCount} active orders need operational follow-through.`);
+    }
+    lines.push('Suggested next asks: "Give me a morning briefing summary", "Chase overdue payments", or "Show order fulfilment risks".');
+    return lines.join('\n');
+  }
+
   // ── Auto-scroll ───────────────────────────────────────────────────────────────
   $effect(() => {
     const _ = messages.length;
@@ -135,6 +165,31 @@
       };
       addMessage(storedMsg);
     }
+  });
+
+  $effect(() => {
+    const currentIdentity = $identity;
+    if (!stdbHistoryLoaded || !currentIdentity || isOffline) return;
+
+    const storageKey = proactiveBriefingStorageKey(currentIdentity);
+    if (localStorage.getItem(storageKey)) return;
+
+    const content = buildProactiveBriefingContent();
+    if (!content) return;
+
+    const proactiveMessage: StoredMessage = {
+      id: uid(),
+      role: 'assistant',
+      content,
+      timestamp: Date.now(),
+    };
+
+    addMessage(proactiveMessage);
+    const conn = getConnection();
+    if (conn) {
+      void persistMessage(conn, proactiveMessage as AIChatMessage);
+    }
+    localStorage.setItem(storageKey, proactiveMessage.id);
   });
 
   async function scrollToBottom() {
