@@ -517,6 +517,218 @@
     }).length;
   });
 
+  let draftDnCount = $derived(
+    $deliveryNotes.filter((n) => n.status.tag === 'Draft').length
+  );
+
+  let dispatchedDnCount = $derived(
+    $deliveryNotes.filter((n) => n.status.tag === 'Dispatched').length
+  );
+
+  let inspectionBacklogCount = $derived(
+    $grns.filter((g) => g.status.tag === 'Draft' || g.status.tag === 'Inspecting').length
+  );
+
+  let overduePoCount = $derived(poRows.filter((po) => po.isPastDue).length);
+  let activeProductCount = $derived.by(() =>
+    displayProducts.filter((p: (typeof displayProducts)[number]) => p.isActive).length
+  );
+
+  let topActiveOrder = $derived.by(() => {
+    const sorted = [...$orders]
+      .filter((o) => o.status.tag === 'Active' || o.status.tag === 'InProgress')
+      .sort((a, b) => (b.totalFils > a.totalFils ? 1 : b.totalFils < a.totalFils ? -1 : 0));
+    const order = sorted[0];
+    if (!order) return null;
+    const party = partyMap.get(order.partyId);
+    const items = lineItemsByParent.get(`order:${order.id}`) ?? [];
+    const delivered = items.reduce((sum, item) => sum + (deliveredByLineItem.get(item.id) ?? 0n), 0n);
+    const ordered = items.reduce((sum, item) => sum + item.quantity, 0n);
+    return {
+      id: order.id,
+      customer: party?.name ?? '-',
+      value: order.totalFils,
+      progress: ordered === 0n ? 'No lines' : `${delivered}/${ordered} units delivered`,
+      expectedDelivery: order.expectedDelivery ? formatDate(order.expectedDelivery) : 'No delivery date',
+    };
+  });
+
+  let oldestDispatchedDn = $derived.by(() => {
+    const dispatched = [...$deliveryNotes]
+      .filter((n) => n.status.tag === 'Dispatched')
+      .sort((a, b) => (a.deliveryDate.microsSinceUnixEpoch < b.deliveryDate.microsSinceUnixEpoch ? -1 : 1));
+    const dn = dispatched[0];
+    if (!dn) return null;
+    return {
+      id: dn.id,
+      dnNumber: dn.dnNumber,
+      customer: partyMap.get(dn.partyId)?.name ?? '-',
+      date: formatDate(dn.deliveryDate),
+    };
+  });
+
+  let highestRiskPo = $derived.by(() => {
+    const row = poRows.find((po) => po.isPastDue) ?? poRows.find((po) => po.status === 'Active' || po.status === 'InProgress') ?? null;
+    return row;
+  });
+
+  let operationsHeadline = $derived.by(() => {
+    if (overduePoCount > 0 && highestRiskPo) {
+      return {
+        eyebrow: 'Execution Pressure',
+        title: `${overduePoCount} supplier commitment${overduePoCount === 1 ? '' : 's'} need intervention`,
+        subtitle: `${highestRiskPo.ref} for ${highestRiskPo.supplier} is already past expected delivery. Keep procurement, receiving, and customer promises aligned.`,
+      };
+    }
+    if (dispatchedDnCount > 0 && oldestDispatchedDn) {
+      return {
+        eyebrow: 'Execution Pressure',
+        title: `${dispatchedDnCount} delivery note${dispatchedDnCount === 1 ? '' : 's'} are still in transit`,
+        subtitle: `${oldestDispatchedDn.dnNumber} for ${oldestDispatchedDn.customer} has been moving since ${oldestDispatchedDn.date}. Close the dispatch-to-delivery loop cleanly.`,
+      };
+    }
+    if (topActiveOrder) {
+      return {
+        eyebrow: 'Execution Pressure',
+        title: `${topActiveOrder.customer} is leading the live fulfilment book`,
+        subtitle: `The top active order is worth ${formatBHD(topActiveOrder.value)} BHD with ${topActiveOrder.progress}.`,
+      };
+    }
+    return {
+      eyebrow: 'Execution Pressure',
+      title: 'Operations is ready for the next fulfilment cycle',
+      subtitle: 'As orders, receipts, and deliveries land, this hub will keep execution state visible and auditable.',
+    };
+  });
+
+  let operationsPriorityDeck = $derived.by(() => {
+    const items: Array<{
+      label: string;
+      title: string;
+      detail: string;
+      tone: 'gold' | 'coral' | 'sage';
+      cta: string;
+      action: () => void;
+    }> = [];
+
+    if (highestRiskPo) {
+      items.push({
+        label: 'Supplier Risk',
+        title: highestRiskPo.isPastDue ? `${highestRiskPo.ref} is past due` : `${highestRiskPo.ref} needs progress tracking`,
+        detail: `${highestRiskPo.supplier} · ${highestRiskPo.total} BHD · expected ${highestRiskPo.expectedDelivery}`,
+        tone: highestRiskPo.isPastDue ? 'coral' : 'gold',
+        cta: 'Review PO',
+        action: () => {
+          activeTab = 'pos';
+          selectedPoId = highestRiskPo.id;
+          detailError = '';
+        }
+      });
+    }
+
+    if (oldestDispatchedDn) {
+      items.push({
+        label: 'Last-Mile',
+        title: `${oldestDispatchedDn.dnNumber} is still awaiting closure`,
+        detail: `${oldestDispatchedDn.customer} · dispatched on ${oldestDispatchedDn.date} · ${dispatchedDnCount} notes still in transit`,
+        tone: 'gold',
+        cta: 'Open Delivery',
+        action: () => {
+          activeTab = 'delivery_notes';
+          selectedDnId = oldestDispatchedDn.id;
+          detailError = '';
+        }
+      });
+    }
+
+    if (inspectionBacklogCount > 0) {
+      items.push({
+        label: 'Receiving',
+        title: `${inspectionBacklogCount} GRN${inspectionBacklogCount === 1 ? '' : 's'} are awaiting closure`,
+        detail: 'Keep receiving and inspection synchronized so accepted stock and payable decisions do not drift.',
+        tone: 'coral',
+        cta: 'Open GRNs',
+        action: () => {
+          activeTab = 'grns';
+          detailError = '';
+        }
+      });
+    }
+
+    if (topActiveOrder) {
+      items.push({
+        label: 'Fulfilment',
+        title: `${topActiveOrder.customer} has the largest live order`,
+        detail: `${formatBHD(topActiveOrder.value)} BHD · expected ${topActiveOrder.expectedDelivery} · ${topActiveOrder.progress}`,
+        tone: 'sage',
+        cta: 'View Orders',
+        action: () => {
+          activeTab = 'orders';
+          detailError = '';
+        }
+      });
+    }
+
+    return items.slice(0, 4);
+  });
+
+  let operationsShortcuts = $derived([
+    {
+      label: 'New DN',
+      hint: `${draftDnCount} notes in draft, ${dispatchedDnCount} in transit`,
+      action: () => {
+        activeTab = 'delivery_notes';
+        openNewDnModal();
+      }
+    },
+    {
+      label: 'Receive Goods',
+      hint: `${inspectionBacklogCount} GRNs awaiting action`,
+      action: () => {
+        activeTab = 'grns';
+        openNewGrnModal();
+      }
+    },
+    {
+      label: 'Supplier POs',
+      hint: `${overduePoCount} overdue commitments`,
+      action: () => {
+        activeTab = 'pos';
+        if (highestRiskPo) selectedPoId = highestRiskPo.id;
+      }
+    },
+    {
+      label: 'Product Desk',
+      hint: `${activeProductCount} active catalogue items`,
+      action: () => {
+        activeTab = 'products';
+      }
+    }
+  ]);
+
+  let operationsPulse = $derived([
+    {
+      label: 'Active Orders',
+      value: String(activeOrderCount),
+      detail: `${formatBHD(topActiveOrder?.value ?? 0n)} BHD at the top of book`
+    },
+    {
+      label: 'Transit Load',
+      value: String(inTransitCount),
+      detail: `${draftDnCount} draft notes still waiting dispatch`
+    },
+    {
+      label: 'Receiving Backlog',
+      value: String(inspectionBacklogCount),
+      detail: `${overduePoCount} purchase orders need supplier follow-up`
+    },
+    {
+      label: 'Catalogue',
+      value: String(activeProductCount),
+      detail: `${displayProducts.length} products available in the desk`
+    }
+  ]);
+
   // ── Mutation helpers ──────────────────────────────────────────────────────
 
   function addDraftPoItem() {
@@ -567,6 +779,7 @@
         partyId: BigInt(poForm.partyId),
         orderId: poForm.orderId ? BigInt(poForm.orderId) : undefined,
         deliveryTerms: poForm.deliveryTerms.trim() || undefined,
+        source: poForm.orderId ? 'native' : 'operations_manual',
         newStatus: { tag: 'Draft' } as any,
         totalFils
       });
@@ -811,6 +1024,7 @@
         partyId: selectedPo.partyId,
         orderId: selectedPo.orderId,
         deliveryTerms: selectedPo.deliveryTerms,
+        source: selectedPo.source,
         newStatus: selectedPo.status,
         totalFils: selectedPo.totalFils + quantity * unitPriceFils
       });
@@ -836,6 +1050,7 @@
         partyId: selectedPo.partyId,
         orderId: selectedPo.orderId,
         deliveryTerms: selectedPo.deliveryTerms,
+        source: selectedPo.source,
         newStatus: { tag: newStatus } as any,
         totalFils: selectedPo.totalFils
       });
@@ -881,8 +1096,61 @@
     </div>
   </header>
 
+  <section class="command-band" use:enter={{ index: 1 }}>
+    <div class="command-hero card">
+      <div class="command-copy">
+        <p class="command-eyebrow">{operationsHeadline.eyebrow}</p>
+        <h2 class="command-title">{operationsHeadline.title}</h2>
+        <p class="command-subtitle">{operationsHeadline.subtitle}</p>
+      </div>
+      <div class="command-shortcuts">
+        {#each operationsShortcuts as shortcut}
+          <button class="command-shortcut" type="button" onclick={shortcut.action}>
+            <span class="command-shortcut-label">{shortcut.label}</span>
+            <span class="command-shortcut-hint">{shortcut.hint}</span>
+          </button>
+        {/each}
+      </div>
+    </div>
+
+    <div class="command-panel card">
+      <div class="command-panel-header">
+        <p class="command-eyebrow">Priority Deck</p>
+        <span class="command-caption">Execution bottlenecks to clear</span>
+      </div>
+      <div class="priority-list">
+        {#each operationsPriorityDeck as item}
+          <article class={`priority-item priority-item--${item.tone}`}>
+            <div class="priority-copy">
+              <p class="priority-label">{item.label}</p>
+              <h3 class="priority-title">{item.title}</h3>
+              <p class="priority-detail">{item.detail}</p>
+            </div>
+            <button class="priority-cta" type="button" onclick={item.action}>{item.cta}</button>
+          </article>
+        {/each}
+      </div>
+    </div>
+
+    <div class="command-panel card">
+      <div class="command-panel-header">
+        <p class="command-eyebrow">Operations Pulse</p>
+        <span class="command-caption">Live fulfilment status</span>
+      </div>
+      <div class="pulse-grid">
+        {#each operationsPulse as item}
+          <article class="pulse-card">
+            <span class="pulse-label">{item.label}</span>
+            <strong class="pulse-value">{item.value}</strong>
+            <span class="pulse-detail">{item.detail}</span>
+          </article>
+        {/each}
+      </div>
+    </div>
+  </section>
+
   <!-- Tab Strip -->
-  <div class="tab-strip" use:enter={{ index: 1 }}>
+  <div class="tab-strip" use:enter={{ index: 2 }}>
     {#each tabs as tab}
       <button
         class="tab-btn"
@@ -895,7 +1163,7 @@
   </div>
 
   <!-- Tab Content -->
-  <div class="tab-content" use:enter={{ index: 2 }}>
+  <div class="tab-content" use:enter={{ index: 3 }}>
 
     <!-- ── ORDERS TAB ── -->
     {#if activeTab === 'orders'}
@@ -1778,6 +2046,238 @@
     flex-wrap: wrap;
   }
 
+  .command-band {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr) minmax(260px, 0.9fr);
+    gap: var(--sp-13);
+    align-items: stretch;
+  }
+
+  .command-hero {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--sp-16);
+    padding: var(--sp-18);
+    background:
+      radial-gradient(circle at top right, rgba(212, 176, 111, 0.18), transparent 36%),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(245, 241, 233, 0.98));
+  }
+
+  .command-copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+  }
+
+  .command-eyebrow {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-40);
+  }
+
+  .command-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(1.75rem, 2.25vw, 2.5rem);
+    line-height: 0.98;
+    letter-spacing: -0.04em;
+    color: var(--ink);
+    max-width: 13ch;
+  }
+
+  .command-subtitle {
+    margin: 0;
+    max-width: 58ch;
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+    color: var(--ink-60);
+  }
+
+  .command-shortcuts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-8);
+  }
+
+  .command-shortcut {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-3);
+    padding: var(--sp-13);
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.72);
+    text-align: left;
+    cursor: pointer;
+    transition: transform var(--dur-fast) var(--ease-out),
+      box-shadow var(--dur-fast) var(--ease-out),
+      border-color var(--dur-fast) var(--ease-out);
+  }
+
+  .command-shortcut:hover {
+    transform: translateY(-1px);
+    border-color: rgba(197, 160, 89, 0.24);
+    box-shadow: var(--shadow-neu-raised);
+  }
+
+  .command-shortcut-label {
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .command-shortcut-hint {
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+    line-height: 1.45;
+    color: var(--ink-40);
+  }
+
+  .command-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-13);
+    padding: var(--sp-16);
+  }
+
+  .command-panel-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-8);
+  }
+
+  .command-caption {
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+    color: var(--ink-40);
+  }
+
+  .priority-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+  }
+
+  .priority-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-10);
+    padding: var(--sp-13);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(17, 24, 39, 0.06);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(249, 247, 242, 0.82));
+  }
+
+  .priority-item--gold {
+    box-shadow: inset 3px 0 0 rgba(197, 160, 89, 0.55);
+  }
+
+  .priority-item--coral {
+    box-shadow: inset 3px 0 0 rgba(210, 102, 93, 0.55);
+  }
+
+  .priority-item--sage {
+    box-shadow: inset 3px 0 0 rgba(95, 140, 110, 0.55);
+  }
+
+  .priority-copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+  }
+
+  .priority-label {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-40);
+  }
+
+  .priority-title {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: var(--text-md);
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .priority-detail {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+    line-height: 1.55;
+    color: var(--ink-60);
+  }
+
+  .priority-cta {
+    align-self: flex-start;
+    height: 34px;
+    padding: 0 var(--sp-13);
+    border: none;
+    border-radius: var(--radius-pill);
+    background: var(--paper-card);
+    box-shadow: var(--shadow-neu-btn);
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gold);
+    cursor: pointer;
+  }
+
+  .pulse-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-8);
+  }
+
+  .pulse-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: var(--sp-10);
+    border-radius: var(--radius-md);
+    background: var(--paper-elevated);
+    box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.04);
+  }
+
+  .pulse-label {
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-40);
+  }
+
+  .pulse-value {
+    font-family: var(--font-data);
+    font-size: var(--text-lg);
+    font-weight: 500;
+    color: var(--ink);
+    letter-spacing: -0.03em;
+  }
+
+  .pulse-detail {
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+    line-height: 1.45;
+    color: var(--ink-40);
+  }
+
   .summary-stat {
     padding: var(--sp-8) var(--sp-13);
     display: flex;
@@ -1887,7 +2387,18 @@
   }
 
   @media (max-width: 1024px) {
+    .command-band {
+      grid-template-columns: 1fr;
+    }
+
     .ops-split {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 820px) {
+    .command-shortcuts,
+    .pulse-grid {
       grid-template-columns: 1fr;
     }
   }

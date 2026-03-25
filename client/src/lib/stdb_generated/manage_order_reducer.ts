@@ -17,7 +17,8 @@ import {
 export default {
   id: __t.u64(),
   partyId: __t.u64(),
-  pipelineId: __t.u64(),
+  pipelineId: __t.option(__t.u64()),
+  source: __t.option(__t.string()),
   get newStatus() {
     return EntityStatus;
   },

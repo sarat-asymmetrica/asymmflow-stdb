@@ -1,18 +1,20 @@
 <script lang="ts">
-  // SeedManager.svelte — One-time migration tool
-  // Loads seed_data.json (extracted from PH Holdings SQLite) and calls
-  // existing STDB reducers to populate the database with real production data.
+  // SeedManager.svelte - One-time migration tool
+  // Loads stdb_seed.json (legacy transactions enriched with canonical PH context)
+  // and calls existing STDB reducers to populate the database with production data.
   //
   // Phases:
   //   1. Insert parties (customers + suppliers)
-  //   2. Wait for party sync, build name → STDB ID map
+  //   2. Wait for party sync, build name -> STDB ID map
   //   3. Insert contacts (using party IDs)
-  //   4. Insert money events: CustomerInvoices → CustomerPayments → SupplierInvoices → SupplierPayments
+  //   4. Insert pipelines from legacy + canonical reference data
+  //   5. Insert money events: CustomerInvoices -> CustomerPayments -> SupplierInvoices -> SupplierPayments
   //
   // All phases use existing reducers with full business logic.
-  // The only constraint: invoices must be inserted before payments per party.
+  // Orders and purchase orders are intentionally deferred until the historical
+  // data can be linked to pipelines without inventing relationships.
 
-  import { getConnection, parties } from '../db';
+  import { getConnection, orders, parties, pipelines, purchaseOrders } from '../db';
   import { get } from 'svelte/store';
   import { Timestamp } from 'spacetimedb';
 
@@ -27,6 +29,16 @@
     paymentTermsDays: number;
     productTypes: string;
     notes: string;
+    code?: string;
+    category?: string;
+    city?: string;
+    country?: string;
+    phone?: string;
+    email?: string;
+    source?: string;
+    active2024?: boolean;
+    active2025?: boolean;
+    active2026?: boolean;
   }
 
   interface SeedContact {
@@ -51,13 +63,72 @@
     createdAt: string | null;
   }
 
+  interface SeedPipeline {
+    partyIdx: number;
+    title: string;
+    status: string;
+    estimatedValueFils: number;
+    winProbabilityBps: number;
+    competitorPresent: boolean;
+    oemPriceFils: number;
+    markupBps: number;
+    additionalCostsFils: number;
+    offerTotalFils?: number;
+    revision?: number;
+    lossReason?: string | null;
+    createdAt?: string | null;
+    legacyYear?: number;
+    opportunityNumber?: string;
+    folderNumber?: string;
+    folderName?: string;
+    sfdcTitle?: string;
+    comment?: string;
+    ehReference?: string;
+    paymentTerms?: string;
+    ownerName?: string;
+    source?: string;
+    sourceNotes?: string;
+    deliverySummary?: string;
+  }
+
+  interface SeedOrder {
+    partyIdx: number;
+    pipelineIdx: number | null;
+    status: string;
+    totalFils: number;
+    poReference: string;
+    expectedDelivery?: string | null;
+    createdAt?: string | null;
+  }
+
+  interface SeedPurchaseOrder {
+    partyIdx: number;
+    orderIdx: number | null;
+    status: string;
+    totalFils: number;
+  }
+
+  interface SeedStats {
+    legacyParties: number;
+    canonicalParties: number;
+    outputParties: number;
+    legacyPipelines: number;
+    referencePipelines: number;
+    orders: number;
+    purchaseOrders: number;
+    moneyEvents: number;
+    canonicalPartyOnlyAdditions: number;
+  }
+
   interface SeedData {
     parties: SeedParty[];
     contacts: SeedContact[];
-    pipelines: unknown[];
-    orders: unknown[];
-    purchaseOrders: unknown[];
+    pipelines: SeedPipeline[];
+    referencePipelines?: SeedPipeline[];
+    orders: SeedOrder[];
+    purchaseOrders: SeedPurchaseOrder[];
     moneyEvents: SeedMoneyEvent[];
+    stats?: SeedStats;
   }
 
   type Phase =
@@ -66,6 +137,9 @@
     | 'parties'
     | 'waiting-sync'
     | 'contacts'
+    | 'pipelines'
+    | 'orders'
+    | 'purchase-orders'
     | 'invoices'
     | 'payments'
     | 'supplier-invoices'
@@ -82,6 +156,9 @@
   let stats = $state({
     parties: 0,
     contacts: 0,
+    pipelines: 0,
+    orders: 0,
+    purchaseOrders: 0,
     customerInvoices: 0,
     customerPayments: 0,
     supplierInvoices: 0,
@@ -89,16 +166,13 @@
     errors: 0,
   });
 
-  // Name → STDB ID mapping (built after party sync)
   let partyNameToId = $state(new Map<string, bigint>());
 
-  // Check if already seeded
   let existingPartyCount = $derived(get(parties).length);
-  // Re-derive reactively
   let alreadySeeded = $derived(existingPartyCount > 10);
 
   function sleep(ms: number): Promise<void> {
-    return new Promise((r) => setTimeout(r, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   function isoToTimestamp(iso: string | null): typeof Timestamp.prototype | undefined {
@@ -110,6 +184,96 @@
     }
   }
 
+  function toEntityStatus(status: string): { tag: 'Draft' | 'Active' | 'InProgress' | 'Terminal' | 'Cancelled' } {
+    switch (status) {
+      case 'Draft':
+        return { tag: 'Draft' };
+      case 'InProgress':
+        return { tag: 'InProgress' };
+      case 'Terminal':
+        return { tag: 'Terminal' };
+      case 'Cancelled':
+        return { tag: 'Cancelled' };
+      case 'Active':
+      default:
+        return { tag: 'Active' };
+    }
+  }
+
+  function getPartyIdFromSeedIndex(seedIndex: number | undefined): bigint | undefined {
+    if (seedIndex === undefined || !seedData) return undefined;
+    const party = seedData.parties[seedIndex];
+    return party ? partyNameToId.get(buildPartyKey(party)) : undefined;
+  }
+
+  function buildOrderKey(partyId: bigint, order: SeedOrder): string {
+    return `${partyId}|${order.poReference}|${order.totalFils}`;
+  }
+
+  function normalizeKeyPart(value: string | number | boolean | undefined | null): string {
+    return String(value ?? '').trim().toLowerCase();
+  }
+
+  function buildPartyKey(party: SeedParty | { name: string; code: string; category: string; isCustomer: boolean; isSupplier: boolean; phone: string; email: string; source: string }): string {
+    return [
+      normalizeKeyPart(party.name),
+      normalizeKeyPart(party.code),
+      normalizeKeyPart(party.category),
+      normalizeKeyPart(party.isCustomer),
+      normalizeKeyPart(party.isSupplier),
+      normalizeKeyPart(party.phone),
+      normalizeKeyPart(party.email),
+      normalizeKeyPart(party.source),
+    ].join('|');
+  }
+
+  function buildPurchaseOrderKey(partyId: bigint, po: SeedPurchaseOrder): string {
+    return `${partyId}|${po.totalFils}|${po.status}`;
+  }
+
+  function buildPipelineLookupKey(
+    partyId: bigint,
+    pipeline:
+      | SeedPipeline
+      | {
+          title: string;
+          estimatedValueFils: bigint;
+          opportunityNumber: string;
+          folderNumber: string;
+          source: string;
+        }
+  ): string {
+    return [
+      partyId.toString(),
+      normalizeKeyPart(pipeline.title),
+      normalizeKeyPart(pipeline.estimatedValueFils.toString()),
+      normalizeKeyPart(pipeline.opportunityNumber),
+      normalizeKeyPart(pipeline.folderNumber),
+      normalizeKeyPart(pipeline.source),
+    ].join('|');
+  }
+
+  function getPipelineTransitionPath(status: string): Array<'Draft' | 'Active' | 'InProgress' | 'Terminal' | 'Cancelled'> {
+    switch (status) {
+      case 'Draft':
+        return ['Draft'];
+      case 'Active':
+        return ['Draft', 'Active'];
+      case 'InProgress':
+        return ['Draft', 'Active', 'InProgress'];
+      case 'Terminal':
+        return ['Draft', 'Active', 'Terminal'];
+      case 'Cancelled':
+        return ['Draft', 'Cancelled'];
+      default:
+        return ['Draft', 'Active'];
+    }
+  }
+
+  function getMoneyEventSourceTimestamp(event: SeedMoneyEvent): typeof Timestamp.prototype | undefined {
+    return isoToTimestamp(event.paidAt ?? event.createdAt ?? event.dueDate ?? null);
+  }
+
   async function startSeed() {
     const conn = getConnection();
     if (!conn) {
@@ -118,18 +282,28 @@
       return;
     }
 
-    // Reset stats
-    stats = { parties: 0, contacts: 0, customerInvoices: 0, customerPayments: 0, supplierInvoices: 0, supplierPayments: 0, errors: 0 };
+    stats = {
+      parties: 0,
+      contacts: 0,
+      pipelines: 0,
+      orders: 0,
+      purchaseOrders: 0,
+      customerInvoices: 0,
+      customerPayments: 0,
+      supplierInvoices: 0,
+      supplierPayments: 0,
+      errors: 0,
+    };
     errorMsg = '';
 
-    // ── Phase: Load JSON ──────────────────────────────────────────
     phase = 'loading';
-    message = 'Loading seed data...';
+    message = 'Loading enriched PH seed data...';
     try {
-      const resp = await fetch('/seed_data.json');
+      const resp = await fetch('/stdb_seed.json');
       if (!resp.ok) throw new Error(`Failed to fetch: ${resp.status}`);
       seedData = (await resp.json()) as SeedData;
-      message = `Loaded ${seedData.parties.length} parties, ${seedData.contacts.length} contacts, ${seedData.moneyEvents.length} money events`;
+      const pipelineCount = seedData.pipelines.length + (seedData.referencePipelines?.length ?? 0);
+      message = `Loaded ${seedData.parties.length} parties, ${seedData.contacts.length} contacts, ${pipelineCount} pipelines, ${seedData.moneyEvents.length} money events`;
     } catch (e) {
       errorMsg = `Failed to load seed data: ${e instanceof Error ? e.message : String(e)}`;
       phase = 'error';
@@ -138,14 +312,13 @@
 
     await sleep(500);
 
-    // ── Phase: Insert Parties ─────────────────────────────────────
     phase = 'parties';
     total = seedData.parties.length;
     progress = 0;
     message = `Inserting ${total} parties...`;
 
     const BATCH_SIZE = 20;
-    const BATCH_DELAY = 100; // ms between batches
+    const BATCH_DELAY = 100;
 
     for (let i = 0; i < seedData.parties.length; i += BATCH_SIZE) {
       const batch = seedData.parties.slice(i, i + BATCH_SIZE);
@@ -154,6 +327,8 @@
           conn.reducers.upsertParty({
             id: 0n,
             name: p.name,
+            code: p.code ?? '',
+            category: p.category ?? '',
             isCustomer: p.isCustomer,
             isSupplier: p.isSupplier,
             grade: { tag: p.grade } as any,
@@ -161,6 +336,14 @@
             paymentTermsDays: BigInt(p.paymentTermsDays),
             productTypes: p.productTypes,
             annualGoalFils: 0n,
+            city: p.city ?? '',
+            country: p.country ?? '',
+            phone: p.phone ?? '',
+            email: p.email ?? '',
+            source: p.source ?? '',
+            active2024: p.active2024 ?? false,
+            active2025: p.active2025 ?? false,
+            active2026: p.active2026 ?? false,
             notes: p.notes,
             bankIban: '',
             bankSwift: '',
@@ -177,24 +360,20 @@
       await sleep(BATCH_DELAY);
     }
 
-    // ── Phase: Wait for Party Sync ────────────────────────────────
     phase = 'waiting-sync';
     message = `Waiting for ${total} parties to sync from server...`;
 
-    // Poll until party count matches (with timeout)
     const startWait = Date.now();
-    const SYNC_TIMEOUT = 60_000; // 60s max
+    const SYNC_TIMEOUT = 60_000;
     while (Date.now() - startWait < SYNC_TIMEOUT) {
-      const currentParties = get(parties);
+        const currentParties = get(parties);
       if (currentParties.length >= seedData.parties.length) {
-        // Build name → ID map
         const map = new Map<string, bigint>();
-        for (const p of currentParties) {
-          // Use lowercase for fuzzy matching
-          map.set(p.name.toLowerCase(), p.id);
+        for (const party of currentParties) {
+          map.set(buildPartyKey(party), party.id);
         }
         partyNameToId = map;
-        message = `Synced! ${currentParties.length} parties, built name→ID map`;
+        message = `Synced ${currentParties.length} parties and built the name map`;
         break;
       }
       message = `Waiting for sync... ${currentParties.length}/${seedData.parties.length}`;
@@ -209,7 +388,6 @@
 
     await sleep(500);
 
-    // ── Phase: Insert Contacts ────────────────────────────────────
     phase = 'contacts';
     total = seedData.contacts.length;
     progress = 0;
@@ -217,9 +395,8 @@
 
     for (let i = 0; i < seedData.contacts.length; i += BATCH_SIZE) {
       const batch = seedData.contacts.slice(i, i + BATCH_SIZE);
-      for (const c of batch) {
-        const partyName = seedData.parties[c.partyIdx]?.name;
-        const partyId = partyName ? partyNameToId.get(partyName.toLowerCase()) : undefined;
+      for (const contact of batch) {
+        const partyId = getPartyIdFromSeedIndex(contact.partyIdx);
         if (!partyId) {
           stats.errors++;
           continue;
@@ -228,15 +405,15 @@
           conn.reducers.upsertContact({
             id: 0n,
             partyId,
-            name: c.name,
-            designation: c.designation,
-            phone: c.phone,
-            email: c.email,
+            name: contact.name,
+            designation: contact.designation,
+            phone: contact.phone,
+            email: contact.email,
             isWhatsApp: false,
           });
           stats.contacts++;
         } catch (e) {
-          console.warn(`[seed] Contact "${c.name}" failed:`, e);
+          console.warn(`[seed] Contact "${contact.name}" failed:`, e);
           stats.errors++;
         }
       }
@@ -247,36 +424,279 @@
 
     await sleep(300);
 
-    // ── Phase: Insert Customer Invoices ───────────────────────────
-    const custInvoices = seedData.moneyEvents.filter((e) => e.kind === 'CustomerInvoice');
-    phase = 'invoices';
-    total = custInvoices.length;
+    const allPipelines = [...seedData.pipelines, ...(seedData.referencePipelines ?? [])];
+    const pipelineIdsBefore = new Set(get(pipelines).map((row) => row.id));
+    const pipelineKeyToId = new Map<string, bigint>();
+    phase = 'pipelines';
+    total = allPipelines.length;
     progress = 0;
-    message = `Inserting ${total} customer invoices...`;
+    message = `Inserting ${total} pipelines...`;
 
-    for (let i = 0; i < custInvoices.length; i += BATCH_SIZE) {
-      const batch = custInvoices.slice(i, i + BATCH_SIZE);
-      for (const ev of batch) {
-        const partyName = seedData.parties[ev.partyIdx]?.name;
-        const partyId = partyName ? partyNameToId.get(partyName.toLowerCase()) : undefined;
+    for (let i = 0; i < allPipelines.length; i += BATCH_SIZE) {
+      const batch = allPipelines.slice(i, i + BATCH_SIZE);
+      for (const pipeline of batch) {
+        const partyId = getPartyIdFromSeedIndex(pipeline.partyIdx);
         if (!partyId) {
           stats.errors++;
           continue;
         }
         try {
+          conn.reducers.advancePipeline({
+            id: 0n,
+            partyId,
+            title: pipeline.title,
+            legacyYear: pipeline.legacyYear,
+            opportunityNumber: pipeline.opportunityNumber,
+            folderNumber: pipeline.folderNumber,
+            folderName: pipeline.folderName,
+            sfdcTitle: pipeline.sfdcTitle,
+            comment: pipeline.comment,
+            ehReference: pipeline.ehReference,
+            paymentTerms: pipeline.paymentTerms,
+            ownerName: pipeline.ownerName,
+            source: pipeline.source,
+            sourceNotes: pipeline.sourceNotes,
+            deliverySummary: pipeline.deliverySummary,
+            newStatus: { tag: 'Draft' } as any,
+            estimatedValueFils: BigInt(pipeline.estimatedValueFils),
+            winProbabilityBps: BigInt(pipeline.winProbabilityBps),
+            competitorPresent: pipeline.competitorPresent,
+            oemPriceFils: BigInt(pipeline.oemPriceFils),
+            markupBps: BigInt(pipeline.markupBps),
+            additionalCostsFils: BigInt(pipeline.additionalCostsFils),
+            costingApproved: pipeline.markupBps >= 1200,
+            offerSentAt: isoToTimestamp(pipeline.createdAt ?? null),
+            lossReason: undefined,
+            nextFollowUp: undefined,
+          });
+        } catch (e) {
+          console.warn(`[seed] Pipeline "${pipeline.title}" failed:`, e);
+          stats.errors++;
+        }
+      }
+      progress = Math.min(i + BATCH_SIZE, total);
+      message = `Pipeline Drafts: ${progress}/${total}`;
+      await sleep(BATCH_DELAY);
+    }
+
+    await sleep(2000);
+    for (const row of get(pipelines)) {
+      if (pipelineIdsBefore.has(row.id)) continue;
+      const matched = allPipelines.find((pipeline) => {
+        const partyId = getPartyIdFromSeedIndex(pipeline.partyIdx);
+        return partyId !== undefined && buildPipelineLookupKey(partyId, pipeline) === buildPipelineLookupKey(row.partyId, row);
+      });
+      if (matched) {
+        const partyId = getPartyIdFromSeedIndex(matched.partyIdx);
+        if (partyId !== undefined) {
+          pipelineKeyToId.set(buildPipelineLookupKey(partyId, matched), row.id);
+        }
+      }
+    }
+
+    for (let i = 0; i < allPipelines.length; i += BATCH_SIZE) {
+      const batch = allPipelines.slice(i, i + BATCH_SIZE);
+      for (const pipeline of batch) {
+        const partyId = getPartyIdFromSeedIndex(pipeline.partyIdx);
+        if (!partyId) {
+          stats.errors++;
+          continue;
+        }
+        const pipelineId = pipelineKeyToId.get(buildPipelineLookupKey(partyId, pipeline));
+        if (!pipelineId) {
+          stats.errors++;
+          continue;
+        }
+        const transitions = getPipelineTransitionPath(pipeline.status);
+        for (const status of transitions.slice(1)) {
+          try {
+            conn.reducers.advancePipeline({
+              id: pipelineId,
+              partyId,
+              title: pipeline.title,
+              legacyYear: pipeline.legacyYear,
+              opportunityNumber: pipeline.opportunityNumber,
+              folderNumber: pipeline.folderNumber,
+              folderName: pipeline.folderName,
+              sfdcTitle: pipeline.sfdcTitle,
+              comment: pipeline.comment,
+              ehReference: pipeline.ehReference,
+              paymentTerms: pipeline.paymentTerms,
+              ownerName: pipeline.ownerName,
+              source: pipeline.source,
+              sourceNotes: pipeline.sourceNotes,
+              deliverySummary: pipeline.deliverySummary,
+              newStatus: { tag: status } as any,
+              estimatedValueFils: BigInt(pipeline.estimatedValueFils),
+              winProbabilityBps: BigInt(pipeline.winProbabilityBps),
+              competitorPresent: pipeline.competitorPresent,
+              oemPriceFils: BigInt(pipeline.oemPriceFils),
+              markupBps: BigInt(pipeline.markupBps),
+              additionalCostsFils: BigInt(pipeline.additionalCostsFils),
+              costingApproved: pipeline.markupBps >= 1200,
+              offerSentAt: isoToTimestamp(pipeline.createdAt ?? null),
+              lossReason: status === 'Cancelled' ? pipeline.lossReason ?? 'Historical pipeline import' : undefined,
+              nextFollowUp: undefined,
+            });
+          } catch (e) {
+            console.warn(`[seed] Pipeline transition "${pipeline.title}" -> ${status} failed:`, e);
+            stats.errors++;
+          }
+        }
+        stats.pipelines++;
+      }
+      progress = Math.min(i + BATCH_SIZE, total);
+      message = `Pipelines: ${progress}/${total}`;
+      await sleep(BATCH_DELAY);
+    }
+
+    await sleep(300);
+
+    const orderIdsBefore = new Set(get(orders).map((row) => row.id));
+    const orderKeyToId = new Map<string, bigint>();
+    phase = 'orders';
+    total = seedData.orders.length;
+    progress = 0;
+    message = `Inserting ${total} historical orders...`;
+
+    for (let i = 0; i < seedData.orders.length; i += BATCH_SIZE) {
+      const batch = seedData.orders.slice(i, i + BATCH_SIZE);
+      for (const order of batch) {
+        const partyId = getPartyIdFromSeedIndex(order.partyIdx);
+        if (!partyId) {
+          stats.errors++;
+          continue;
+        }
+        let pipelineId: bigint | undefined;
+        if (order.pipelineIdx != null) {
+          const linkedPipeline = seedData.pipelines[order.pipelineIdx];
+          if (linkedPipeline) {
+            pipelineId = pipelineKeyToId.get(buildPipelineLookupKey(partyId, linkedPipeline));
+          }
+        }
+        try {
+          conn.reducers.manageOrder({
+            id: 0n,
+            partyId,
+            pipelineId,
+            source: pipelineId ? 'legacy_seed_linked' : 'legacy_seed_unlinked',
+            newStatus: toEntityStatus(order.status) as any,
+            totalFils: BigInt(order.totalFils),
+            poReference: order.poReference,
+            expectedDelivery: isoToTimestamp(order.expectedDelivery ?? null),
+          });
+          stats.orders++;
+        } catch (e) {
+          console.warn(`[seed] Order "${order.poReference}" failed:`, e);
+          stats.errors++;
+        }
+      }
+      progress = Math.min(i + BATCH_SIZE, total);
+      message = `Orders: ${progress}/${total}`;
+      await sleep(BATCH_DELAY);
+    }
+
+    await sleep(2000);
+    for (const row of get(orders)) {
+      if (orderIdsBefore.has(row.id)) continue;
+      const matched = seedData.orders.find((order) => {
+        const partyId = getPartyIdFromSeedIndex(order.partyIdx);
+        return partyId !== undefined && buildOrderKey(partyId, order) === `${row.partyId}|${row.poReference}|${row.totalFils}`;
+      });
+      if (matched) {
+        const partyId = getPartyIdFromSeedIndex(matched.partyIdx);
+        if (partyId !== undefined) {
+          orderKeyToId.set(buildOrderKey(partyId, matched), row.id);
+        }
+      }
+    }
+
+    await sleep(300);
+
+    phase = 'purchase-orders';
+    total = seedData.purchaseOrders.length;
+    progress = 0;
+    message = `Inserting ${total} historical purchase orders...`;
+
+    for (let i = 0; i < seedData.purchaseOrders.length; i += BATCH_SIZE) {
+      const batch = seedData.purchaseOrders.slice(i, i + BATCH_SIZE);
+      for (const purchaseOrder of batch) {
+        const partyId = getPartyIdFromSeedIndex(purchaseOrder.partyIdx);
+        if (!partyId) {
+          stats.errors++;
+          continue;
+        }
+        let linkedOrderId: bigint | undefined;
+        if (purchaseOrder.orderIdx != null) {
+          const linkedOrder = seedData.orders[purchaseOrder.orderIdx];
+          if (linkedOrder) {
+            const linkedPartyId = getPartyIdFromSeedIndex(linkedOrder.partyIdx);
+            if (linkedPartyId !== undefined) {
+              linkedOrderId = orderKeyToId.get(buildOrderKey(linkedPartyId, linkedOrder));
+            }
+          }
+        }
+        try {
+          conn.reducers.managePurchaseOrder({
+            id: 0n,
+            partyId,
+            orderId: linkedOrderId,
+            deliveryTerms: undefined,
+            source: linkedOrderId ? 'legacy_seed_linked' : 'legacy_seed_unlinked',
+            newStatus: toEntityStatus(purchaseOrder.status) as any,
+            totalFils: BigInt(purchaseOrder.totalFils),
+          });
+          stats.purchaseOrders++;
+        } catch (e) {
+          console.warn(`[seed] Purchase order "${buildPurchaseOrderKey(partyId, purchaseOrder)}" failed:`, e);
+          stats.errors++;
+        }
+      }
+      progress = Math.min(i + BATCH_SIZE, total);
+      message = `Purchase orders: ${progress}/${total}`;
+      await sleep(BATCH_DELAY);
+    }
+
+    await sleep(300);
+
+    const customerInvoices = seedData.moneyEvents.filter((event) => event.kind === 'CustomerInvoice');
+    phase = 'invoices';
+    total = customerInvoices.length;
+    progress = 0;
+    message = `Inserting ${total} customer invoices...`;
+
+    for (let i = 0; i < customerInvoices.length; i += BATCH_SIZE) {
+      const batch = customerInvoices.slice(i, i + BATCH_SIZE);
+      for (const event of batch) {
+        const partyId = getPartyIdFromSeedIndex(event.partyIdx);
+        if (!partyId) {
+          stats.errors++;
+          continue;
+        }
+        let orderId: bigint | undefined;
+        if (event.orderIdx != null) {
+          const linkedOrder = seedData.orders[event.orderIdx];
+          if (linkedOrder) {
+            const linkedPartyId = getPartyIdFromSeedIndex(linkedOrder.partyIdx);
+            if (linkedPartyId !== undefined) {
+              orderId = orderKeyToId.get(buildOrderKey(linkedPartyId, linkedOrder));
+            }
+          }
+        }
+        try {
           conn.reducers.recordMoneyEvent({
             partyId,
-            orderId: undefined,
+            orderId,
             deliveryNoteId: undefined,
             kind: { tag: 'CustomerInvoice' } as any,
-            subtotalFils: BigInt(ev.subtotalFils),
-            reference: ev.reference,
-            sourceDate: undefined,
-            dueDate: isoToTimestamp(ev.dueDate),
+            subtotalFils: BigInt(event.subtotalFils),
+            reference: event.reference,
+            sourceDate: getMoneyEventSourceTimestamp(event),
+            dueDate: isoToTimestamp(event.dueDate),
           });
           stats.customerInvoices++;
         } catch (e) {
-          console.warn(`[seed] Invoice "${ev.reference}" failed:`, e);
+          console.warn(`[seed] Invoice "${event.reference}" failed:`, e);
           stats.errors++;
         }
       }
@@ -285,40 +705,47 @@
       await sleep(BATCH_DELAY);
     }
 
-    // Wait a moment for invoices to process server-side before inserting payments
-    message = 'Waiting for invoices to process before inserting payments...';
+    message = 'Waiting for invoices to settle before inserting payments...';
     await sleep(3000);
 
-    // ── Phase: Insert Customer Payments ───────────────────────────
-    const custPayments = seedData.moneyEvents.filter((e) => e.kind === 'CustomerPayment');
+    const customerPayments = seedData.moneyEvents.filter((event) => event.kind === 'CustomerPayment');
     phase = 'payments';
-    total = custPayments.length;
+    total = customerPayments.length;
     progress = 0;
     message = `Inserting ${total} customer payments...`;
 
-    for (let i = 0; i < custPayments.length; i += BATCH_SIZE) {
-      const batch = custPayments.slice(i, i + BATCH_SIZE);
-      for (const ev of batch) {
-        const partyName = seedData.parties[ev.partyIdx]?.name;
-        const partyId = partyName ? partyNameToId.get(partyName.toLowerCase()) : undefined;
+    for (let i = 0; i < customerPayments.length; i += BATCH_SIZE) {
+      const batch = customerPayments.slice(i, i + BATCH_SIZE);
+      for (const event of batch) {
+        const partyId = getPartyIdFromSeedIndex(event.partyIdx);
         if (!partyId) {
           stats.errors++;
           continue;
         }
+        let orderId: bigint | undefined;
+        if (event.orderIdx != null) {
+          const linkedOrder = seedData.orders[event.orderIdx];
+          if (linkedOrder) {
+            const linkedPartyId = getPartyIdFromSeedIndex(linkedOrder.partyIdx);
+            if (linkedPartyId !== undefined) {
+              orderId = orderKeyToId.get(buildOrderKey(linkedPartyId, linkedOrder));
+            }
+          }
+        }
         try {
           conn.reducers.recordMoneyEvent({
             partyId,
-            orderId: undefined,
+            orderId,
             deliveryNoteId: undefined,
             kind: { tag: 'CustomerPayment' } as any,
-            subtotalFils: BigInt(ev.subtotalFils),
-            reference: ev.reference,
-            sourceDate: undefined,
+            subtotalFils: BigInt(event.subtotalFils),
+            reference: event.reference,
+            sourceDate: getMoneyEventSourceTimestamp(event),
             dueDate: undefined,
           });
           stats.customerPayments++;
         } catch (e) {
-          console.warn(`[seed] Payment "${ev.reference}" failed:`, e);
+          console.warn(`[seed] Payment "${event.reference}" failed:`, e);
           stats.errors++;
         }
       }
@@ -329,36 +756,44 @@
 
     await sleep(300);
 
-    // ── Phase: Insert Supplier Invoices ───────────────────────────
-    const suppInvoices = seedData.moneyEvents.filter((e) => e.kind === 'SupplierInvoice');
+    const supplierInvoices = seedData.moneyEvents.filter((event) => event.kind === 'SupplierInvoice');
     phase = 'supplier-invoices';
-    total = suppInvoices.length;
+    total = supplierInvoices.length;
     progress = 0;
     message = `Inserting ${total} supplier invoices...`;
 
-    for (let i = 0; i < suppInvoices.length; i += BATCH_SIZE) {
-      const batch = suppInvoices.slice(i, i + BATCH_SIZE);
-      for (const ev of batch) {
-        const partyName = seedData.parties[ev.partyIdx]?.name;
-        const partyId = partyName ? partyNameToId.get(partyName.toLowerCase()) : undefined;
+    for (let i = 0; i < supplierInvoices.length; i += BATCH_SIZE) {
+      const batch = supplierInvoices.slice(i, i + BATCH_SIZE);
+      for (const event of batch) {
+        const partyId = getPartyIdFromSeedIndex(event.partyIdx);
         if (!partyId) {
           stats.errors++;
           continue;
         }
+        let orderId: bigint | undefined;
+        if (event.orderIdx != null) {
+          const linkedOrder = seedData.orders[event.orderIdx];
+          if (linkedOrder) {
+            const linkedPartyId = getPartyIdFromSeedIndex(linkedOrder.partyIdx);
+            if (linkedPartyId !== undefined) {
+              orderId = orderKeyToId.get(buildOrderKey(linkedPartyId, linkedOrder));
+            }
+          }
+        }
         try {
           conn.reducers.recordMoneyEvent({
             partyId,
-            orderId: undefined,
+            orderId,
             deliveryNoteId: undefined,
             kind: { tag: 'SupplierInvoice' } as any,
-            subtotalFils: BigInt(ev.subtotalFils),
-            reference: ev.reference,
-            sourceDate: undefined,
-            dueDate: isoToTimestamp(ev.dueDate),
+            subtotalFils: BigInt(event.subtotalFils),
+            reference: event.reference,
+            sourceDate: getMoneyEventSourceTimestamp(event),
+            dueDate: isoToTimestamp(event.dueDate),
           });
           stats.supplierInvoices++;
         } catch (e) {
-          console.warn(`[seed] Supplier invoice "${ev.reference}" failed:`, e);
+          console.warn(`[seed] Supplier invoice "${event.reference}" failed:`, e);
           stats.errors++;
         }
       }
@@ -369,36 +804,44 @@
 
     await sleep(300);
 
-    // ── Phase: Insert Supplier Payments ───────────────────────────
-    const suppPayments = seedData.moneyEvents.filter((e) => e.kind === 'SupplierPayment');
+    const supplierPayments = seedData.moneyEvents.filter((event) => event.kind === 'SupplierPayment');
     phase = 'supplier-payments';
-    total = suppPayments.length;
+    total = supplierPayments.length;
     progress = 0;
     message = `Inserting ${total} supplier payments...`;
 
-    for (let i = 0; i < suppPayments.length; i += BATCH_SIZE) {
-      const batch = suppPayments.slice(i, i + BATCH_SIZE);
-      for (const ev of batch) {
-        const partyName = seedData.parties[ev.partyIdx]?.name;
-        const partyId = partyName ? partyNameToId.get(partyName.toLowerCase()) : undefined;
+    for (let i = 0; i < supplierPayments.length; i += BATCH_SIZE) {
+      const batch = supplierPayments.slice(i, i + BATCH_SIZE);
+      for (const event of batch) {
+        const partyId = getPartyIdFromSeedIndex(event.partyIdx);
         if (!partyId) {
           stats.errors++;
           continue;
         }
+        let orderId: bigint | undefined;
+        if (event.orderIdx != null) {
+          const linkedOrder = seedData.orders[event.orderIdx];
+          if (linkedOrder) {
+            const linkedPartyId = getPartyIdFromSeedIndex(linkedOrder.partyIdx);
+            if (linkedPartyId !== undefined) {
+              orderId = orderKeyToId.get(buildOrderKey(linkedPartyId, linkedOrder));
+            }
+          }
+        }
         try {
           conn.reducers.recordMoneyEvent({
             partyId,
-            orderId: undefined,
+            orderId,
             deliveryNoteId: undefined,
             kind: { tag: 'SupplierPayment' } as any,
-            subtotalFils: BigInt(ev.subtotalFils),
-            reference: ev.reference,
-            sourceDate: undefined,
+            subtotalFils: BigInt(event.subtotalFils),
+            reference: event.reference,
+            sourceDate: getMoneyEventSourceTimestamp(event),
             dueDate: undefined,
           });
           stats.supplierPayments++;
         } catch (e) {
-          console.warn(`[seed] Supplier payment "${ev.reference}" failed:`, e);
+          console.warn(`[seed] Supplier payment "${event.reference}" failed:`, e);
           stats.errors++;
         }
       }
@@ -407,10 +850,16 @@
       await sleep(BATCH_DELAY);
     }
 
-    // ── Done ──────────────────────────────────────────────────────
     phase = 'done';
-    const totalInserted = stats.parties + stats.contacts + stats.customerInvoices +
-      stats.customerPayments + stats.supplierInvoices + stats.supplierPayments;
+    const totalInserted = stats.parties +
+      stats.contacts +
+      stats.pipelines +
+      stats.orders +
+      stats.purchaseOrders +
+      stats.customerInvoices +
+      stats.customerPayments +
+      stats.supplierInvoices +
+      stats.supplierPayments;
     message = `Seed complete! ${totalInserted} records inserted, ${stats.errors} errors`;
   }
 
@@ -422,6 +871,9 @@
     parties: 'Inserting Parties',
     'waiting-sync': 'Waiting for Sync',
     contacts: 'Inserting Contacts',
+    pipelines: 'Inserting Pipelines',
+    orders: 'Inserting Orders',
+    'purchase-orders': 'Inserting Purchase Orders',
     invoices: 'Customer Invoices',
     payments: 'Customer Payments',
     'supplier-invoices': 'Supplier Invoices',
@@ -433,11 +885,13 @@
 
 <div class="seed-panel">
   <div class="seed-header">
-    <h3 class="seed-title">Seed from Legacy Data</h3>
+    <h3 class="seed-title">Seed from PH Reference Data</h3>
     <p class="seed-desc">
-      Import 379 parties, 535 contacts, 67 pipelines, 175 orders, 45 purchase orders,
-      and 1,615 financial records
-      from PH Holdings SQLite database.
+      Import enriched PH business truth, including
+      {seedData?.stats?.outputParties ?? 422} parties,
+      {seedData?.contacts.length ?? 535} contacts,
+      {(seedData?.pipelines.length ?? 67) + (seedData?.referencePipelines?.length ?? 298)} pipelines,
+      and {seedData?.stats?.moneyEvents ?? 1615} financial records.
     </p>
   </div>
 
@@ -465,6 +919,9 @@
       <div class="seed-stats-grid">
         <div class="stat-item"><span class="stat-val">{stats.parties}</span><span class="stat-lbl">Parties</span></div>
         <div class="stat-item"><span class="stat-val">{stats.contacts}</span><span class="stat-lbl">Contacts</span></div>
+        <div class="stat-item"><span class="stat-val">{stats.pipelines}</span><span class="stat-lbl">Pipelines</span></div>
+        <div class="stat-item"><span class="stat-val">{stats.orders}</span><span class="stat-lbl">Orders</span></div>
+        <div class="stat-item"><span class="stat-val">{stats.purchaseOrders}</span><span class="stat-lbl">POs</span></div>
         <div class="stat-item"><span class="stat-val">{stats.customerInvoices}</span><span class="stat-lbl">Invoices</span></div>
         <div class="stat-item"><span class="stat-val">{stats.customerPayments}</span><span class="stat-lbl">Payments</span></div>
         <div class="stat-item"><span class="stat-val">{stats.supplierInvoices}</span><span class="stat-lbl">Supp. Inv.</span></div>
@@ -476,7 +933,6 @@
     </div>
 
   {:else}
-    <!-- Active seeding progress -->
     <div class="seed-progress">
       <div class="progress-phase">
         <span class="phase-label">{phaseLabels[phase]}</span>
@@ -494,6 +950,8 @@
       <div class="seed-stats-row">
         <span>Parties: {stats.parties}</span>
         <span>Contacts: {stats.contacts}</span>
+        <span>Pipelines: {stats.pipelines}</span>
+        <span>Orders: {stats.orders}</span>
         <span>Inv: {stats.customerInvoices}</span>
         <span>Pay: {stats.customerPayments}</span>
         {#if stats.errors > 0}
@@ -573,7 +1031,6 @@
     padding: var(--sp-5) var(--sp-13);
   }
 
-  /* Error */
   .seed-error {
     display: flex;
     flex-direction: column;
@@ -601,7 +1058,6 @@
     margin: 0;
   }
 
-  /* Done */
   .seed-done {
     display: flex;
     flex-direction: column;
@@ -636,7 +1092,7 @@
     grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
     gap: var(--sp-8);
     width: 100%;
-    max-width: 500px;
+    max-width: 560px;
   }
 
   .stat-item {
@@ -666,7 +1122,6 @@
     color: var(--coral);
   }
 
-  /* Progress */
   .seed-progress {
     display: flex;
     flex-direction: column;
@@ -715,6 +1170,7 @@
 
   .seed-stats-row {
     display: flex;
+    flex-wrap: wrap;
     gap: var(--sp-16);
     font-family: var(--font-data);
     font-size: var(--text-xs);

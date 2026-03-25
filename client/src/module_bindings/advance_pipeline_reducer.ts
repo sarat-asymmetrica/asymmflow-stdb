@@ -18,6 +18,18 @@ export default {
   id: __t.u64(),
   partyId: __t.u64(),
   title: __t.string(),
+  legacyYear: __t.option(__t.u32()),
+  opportunityNumber: __t.option(__t.string()),
+  folderNumber: __t.option(__t.string()),
+  folderName: __t.option(__t.string()),
+  sfdcTitle: __t.option(__t.string()),
+  comment: __t.option(__t.string()),
+  ehReference: __t.option(__t.string()),
+  paymentTerms: __t.option(__t.string()),
+  ownerName: __t.option(__t.string()),
+  source: __t.option(__t.string()),
+  sourceNotes: __t.option(__t.string()),
+  deliverySummary: __t.option(__t.string()),
   get newStatus() {
     return EntityStatus;
   },

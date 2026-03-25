@@ -10,6 +10,16 @@ type SeedParty = {
   isSupplier: boolean;
   grade: string;
   paymentTermsDays: number;
+  code?: string;
+  category?: string;
+  city?: string;
+  country?: string;
+  phone?: string;
+  email?: string;
+  source?: string;
+  active2024?: boolean;
+  active2025?: boolean;
+  active2026?: boolean;
 };
 
 type SeedPipeline = {
@@ -55,9 +65,15 @@ export type SeedData = {
   parties: SeedParty[];
   contacts: Array<Record<string, unknown>>;
   pipelines: SeedPipeline[];
+  referencePipelines?: SeedPipeline[];
   orders: SeedOrder[];
   purchaseOrders: SeedPurchaseOrder[];
   moneyEvents: SeedMoneyEvent[];
+  stats?: {
+    outputParties?: number;
+    referencePipelines?: number;
+    moneyEvents?: number;
+  };
 };
 
 function timestampMicros(iso: string | null | undefined): bigint {
@@ -67,7 +83,7 @@ function timestampMicros(iso: string | null | undefined): bigint {
 
 export function getSeedDataPath(): string {
   const dir = path.dirname(fileURLToPath(import.meta.url));
-  return path.resolve(dir, '../../../public/seed_data.json');
+  return path.resolve(dir, '../../../public/stdb_seed.json');
 }
 
 export function loadSeedData(filePath = getSeedDataPath()): SeedData {
@@ -86,7 +102,7 @@ export function summarizeSeedData(seed: SeedData) {
   return {
     parties: seed.parties.length,
     contacts: seed.contacts.length,
-    pipelines: seed.pipelines.length,
+    pipelines: seed.pipelines.length + (seed.referencePipelines?.length ?? 0),
     orders: seed.orders.length,
     purchaseOrders: seed.purchaseOrders.length,
     moneyEvents: seed.moneyEvents.length,
@@ -110,7 +126,8 @@ export function buildSeedDashboardSnapshot(seed: SeedData, nowMicros: bigint) {
     grade: { tag: party.grade },
   }));
 
-  const pipelines = seed.pipelines.map((pipeline, index) => ({
+  const allPipelines = [...seed.pipelines, ...(seed.referencePipelines ?? [])];
+  const pipelines = allPipelines.map((pipeline, index) => ({
     id: BigInt(index + 1),
     partyId: BigInt(pipeline.partyIdx + 1),
     title: pipeline.title,

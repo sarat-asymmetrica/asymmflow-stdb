@@ -9,6 +9,8 @@ type GenericCtx = {
 type PartyLike = {
   id: bigint;
   name: string;
+  code: string;
+  category: string;
   isCustomer: boolean;
   isSupplier: boolean;
   grade: { tag: string };
@@ -17,6 +19,14 @@ type PartyLike = {
   paymentTermsDays: bigint;
   productTypes: string;
   annualGoalFils: bigint;
+  city: string;
+  country: string;
+  phone: string;
+  email: string;
+  source: string;
+  active2024: boolean;
+  active2025: boolean;
+  active2026: boolean;
   notes: string;
   bankIban: string;
   bankSwift: string;
@@ -388,6 +398,8 @@ export function addLineItemImpl(ctx: GenericCtx, args: {
 export function upsertPartyImpl(ctx: GenericCtx, args: {
   id: bigint;
   name: string;
+  code?: string;
+  category?: string;
   isCustomer: boolean;
   isSupplier: boolean;
   grade: { tag: string };
@@ -395,6 +407,14 @@ export function upsertPartyImpl(ctx: GenericCtx, args: {
   paymentTermsDays: bigint;
   productTypes: string;
   annualGoalFils: bigint;
+  city?: string;
+  country?: string;
+  phone?: string;
+  email?: string;
+  source?: string;
+  active2024?: boolean;
+  active2025?: boolean;
+  active2026?: boolean;
   notes: string;
   bankIban: string;
   bankSwift: string;
@@ -409,6 +429,8 @@ export function upsertPartyImpl(ctx: GenericCtx, args: {
     const party = ctx.db.party.insert({
       id: 0n,
       name: args.name,
+      code: args.code ?? '',
+      category: args.category ?? '',
       isCustomer: args.isCustomer,
       isSupplier: args.isSupplier,
       grade: args.grade,
@@ -417,6 +439,14 @@ export function upsertPartyImpl(ctx: GenericCtx, args: {
       paymentTermsDays: terms,
       productTypes: args.productTypes,
       annualGoalFils: args.annualGoalFils,
+      city: args.city ?? '',
+      country: args.country ?? '',
+      phone: args.phone ?? '',
+      email: args.email ?? '',
+      source: args.source ?? '',
+      active2024: args.active2024 ?? false,
+      active2025: args.active2025 ?? false,
+      active2026: args.active2026 ?? false,
       notes: args.notes,
       bankIban: args.bankIban ?? '',
       bankSwift: args.bankSwift ?? '',
@@ -444,8 +474,28 @@ export function upsertPartyImpl(ctx: GenericCtx, args: {
 
   const updated = {
     ...existing,
-    ...args,
+    name: args.name,
+    code: args.code ?? existing.code,
+    category: args.category ?? existing.category,
+    isCustomer: args.isCustomer,
+    isSupplier: args.isSupplier,
+    grade: args.grade,
+    creditLimitFils: args.creditLimitFils,
     paymentTermsDays: terms,
+    productTypes: args.productTypes,
+    annualGoalFils: args.annualGoalFils,
+    city: args.city ?? existing.city,
+    country: args.country ?? existing.country,
+    phone: args.phone ?? existing.phone,
+    email: args.email ?? existing.email,
+    source: args.source ?? existing.source,
+    active2024: args.active2024 ?? existing.active2024,
+    active2025: args.active2025 ?? existing.active2025,
+    active2026: args.active2026 ?? existing.active2026,
+    notes: args.notes,
+    bankIban: args.bankIban,
+    bankSwift: args.bankSwift,
+    bankAccountName: args.bankAccountName,
     updatedAt: ctx.timestamp,
   };
   ctx.db.party.id.update(updated);
@@ -511,7 +561,8 @@ export function upsertContactImpl(ctx: GenericCtx, args: {
 export function manageOrderImpl(ctx: GenericCtx, args: {
   id: bigint;
   partyId: bigint;
-  pipelineId: bigint;
+  pipelineId?: bigint;
+  source?: string;
   newStatus: EntityStatusLike;
   totalFils: bigint;
   poReference: string;
@@ -519,7 +570,11 @@ export function manageOrderImpl(ctx: GenericCtx, args: {
 }): void {
   const party = ctx.db.party.id.find(args.partyId);
   if (!party) throw new Error(`Party #${args.partyId} not found`);
-  if (!ctx.db.pipeline.id.find(args.pipelineId)) throw new Error(`Pipeline #${args.pipelineId} not found`);
+  if (args.pipelineId !== undefined) {
+    const pipeline = ctx.db.pipeline.id.find(args.pipelineId);
+    if (!pipeline) throw new Error(`Pipeline #${args.pipelineId} not found`);
+    if (pipeline.partyId !== args.partyId) throw new Error(`Pipeline #${args.pipelineId} belongs to party #${pipeline.partyId}, not party #${args.partyId}`);
+  }
 
   if (args.id === 0n) {
     if (party.isCreditBlocked) {
@@ -533,6 +588,7 @@ export function manageOrderImpl(ctx: GenericCtx, args: {
       status: args.newStatus,
       totalFils: args.totalFils,
       poReference: args.poReference,
+      source: args.source?.trim() || (args.pipelineId !== undefined ? 'native' : 'legacy_seed'),
       expectedDelivery: args.expectedDelivery,
       createdAt: ctx.timestamp,
       updatedAt: ctx.timestamp,
@@ -564,9 +620,11 @@ export function manageOrderImpl(ctx: GenericCtx, args: {
 
   const updated = {
     ...existing,
+    pipelineId: args.pipelineId ?? existing.pipelineId,
     status: args.newStatus,
     totalFils: args.totalFils,
     poReference: args.poReference,
+    source: args.source?.trim() || existing.source,
     expectedDelivery: args.expectedDelivery ?? existing.expectedDelivery,
     updatedAt: ctx.timestamp,
   };
@@ -590,11 +648,13 @@ export function managePurchaseOrderImpl(ctx: GenericCtx, args: {
   partyId: bigint;
   orderId?: bigint;
   deliveryTerms?: string;
+  source?: string;
   newStatus: EntityStatusLike;
   totalFils: bigint;
 }): void {
   const supplier = ctx.db.party.id.find(args.partyId);
   if (!supplier) throw new Error(`Supplier party #${args.partyId} not found`);
+  if (args.orderId !== undefined && !ctx.db.order.id.find(args.orderId)) throw new Error(`Order #${args.orderId} not found`);
   requireManagerApprovalForLargePurchaseOrder(ctx, args.totalFils);
 
   const deliveryTerms = args.deliveryTerms?.trim() || 'CIF Bahrain unless otherwise specified';
@@ -607,6 +667,7 @@ export function managePurchaseOrderImpl(ctx: GenericCtx, args: {
       orderId: args.orderId,
       poNumber,
       deliveryTerms,
+      source: args.source?.trim() || (args.orderId !== undefined ? 'native' : 'legacy_seed'),
       status: args.newStatus,
       totalFils: args.totalFils,
       createdBy: ctx.sender,
@@ -644,7 +705,9 @@ export function managePurchaseOrderImpl(ctx: GenericCtx, args: {
 
   const updated = {
     ...existing,
+    orderId: args.orderId ?? existing.orderId,
     deliveryTerms: args.deliveryTerms !== undefined ? deliveryTerms : existing.deliveryTerms,
+    source: args.source?.trim() || existing.source,
     status: args.newStatus,
     totalFils: args.totalFils,
     updatedAt: ctx.timestamp,
@@ -668,6 +731,18 @@ export function advancePipelineImpl(ctx: GenericCtx, args: {
   id: bigint;
   partyId: bigint;
   title: string;
+  legacyYear?: number;
+  opportunityNumber?: string;
+  folderNumber?: string;
+  folderName?: string;
+  sfdcTitle?: string;
+  comment?: string;
+  ehReference?: string;
+  paymentTerms?: string;
+  ownerName?: string;
+  source?: string;
+  sourceNotes?: string;
+  deliverySummary?: string;
   newStatus: EntityStatusLike;
   estimatedValueFils: bigint;
   winProbabilityBps: bigint;
@@ -695,6 +770,18 @@ export function advancePipelineImpl(ctx: GenericCtx, args: {
       partyId: args.partyId,
       ownerId: ctx.sender,
       title: args.title,
+      legacyYear: args.legacyYear,
+      opportunityNumber: args.opportunityNumber ?? '',
+      folderNumber: args.folderNumber ?? '',
+      folderName: args.folderName ?? '',
+      sfdcTitle: args.sfdcTitle ?? '',
+      comment: args.comment ?? '',
+      ehReference: args.ehReference ?? '',
+      paymentTerms: args.paymentTerms ?? '',
+      ownerName: args.ownerName ?? '',
+      source: args.source ?? '',
+      sourceNotes: args.sourceNotes ?? '',
+      deliverySummary: args.deliverySummary ?? '',
       status: args.newStatus,
       estimatedValueFils: args.estimatedValueFils,
       winProbabilityBps: args.winProbabilityBps,
@@ -748,6 +835,18 @@ export function advancePipelineImpl(ctx: GenericCtx, args: {
     ...existing,
     partyId: args.partyId,
     title: args.title,
+    legacyYear: args.legacyYear ?? existing.legacyYear,
+    opportunityNumber: args.opportunityNumber ?? existing.opportunityNumber,
+    folderNumber: args.folderNumber ?? existing.folderNumber,
+    folderName: args.folderName ?? existing.folderName,
+    sfdcTitle: args.sfdcTitle ?? existing.sfdcTitle,
+    comment: args.comment ?? existing.comment,
+    ehReference: args.ehReference ?? existing.ehReference,
+    paymentTerms: args.paymentTerms ?? existing.paymentTerms,
+    ownerName: args.ownerName ?? existing.ownerName,
+    source: args.source ?? existing.source,
+    sourceNotes: args.sourceNotes ?? existing.sourceNotes,
+    deliverySummary: args.deliverySummary ?? existing.deliverySummary,
     status: args.newStatus,
     estimatedValueFils: args.estimatedValueFils,
     winProbabilityBps: args.winProbabilityBps,
@@ -1092,6 +1191,7 @@ export function convertPipelineToOrderImpl(ctx: GenericCtx, args: {
     status: { tag: 'Draft' },
     totalFils: pipeline.offerTotalFils,
     poReference: args.poReference,
+    source: 'pipeline_conversion',
     expectedDelivery: args.expectedDelivery,
     createdAt: ctx.timestamp,
     updatedAt: ctx.timestamp,
@@ -1167,6 +1267,8 @@ export function recordMoneyEventImpl(ctx: GenericCtx, args: {
 }): void {
   const party = ctx.db.party.id.find(args.partyId);
   if (!party) throw new Error(`Party #${args.partyId} not found`);
+  const isHistoricalImport = args.sourceDate !== undefined;
+  const eventTimestamp = args.sourceDate ?? ctx.timestamp;
 
   if (args.kind.tag === 'CustomerInvoice') {
     let orderId = args.orderId;
@@ -1174,11 +1276,11 @@ export function recordMoneyEventImpl(ctx: GenericCtx, args: {
     const vatFils = (subtotalFils * 10n) / 100n;
     const grossInvoiceFils = subtotalFils + vatFils;
 
-    if (party.isCreditBlocked) {
+    if (!isHistoricalImport && party.isCreditBlocked) {
       throw new Error('Party is credit-blocked - cannot issue invoice');
     }
 
-    if (party.grade?.tag === 'C' || party.grade?.tag === 'D') {
+    if (!isHistoricalImport && (party.grade?.tag === 'C' || party.grade?.tag === 'D')) {
       let invoiced = 0n;
       let paid = 0n;
       for (const evt of ctx.db.moneyEvent.iter()) {
@@ -1193,7 +1295,7 @@ export function recordMoneyEventImpl(ctx: GenericCtx, args: {
       }
     }
 
-    if (args.deliveryNoteId !== undefined) {
+    if (!isHistoricalImport && args.deliveryNoteId !== undefined) {
       const note = ctx.db.deliveryNote.id.find(args.deliveryNoteId);
       if (!note) throw new Error(`Delivery note #${args.deliveryNoteId} not found`);
       if (note.partyId !== args.partyId) {
@@ -1226,14 +1328,16 @@ export function recordMoneyEventImpl(ctx: GenericCtx, args: {
         throw new Error(`Order #${orderId} belongs to party #${order.partyId}, not party #${args.partyId}`);
       }
 
-      const deliveredSubtotal = computeDeliveredSubtotalForOrder(ctx, orderId);
-      const previouslyInvoiced = sumInvoicedForOrder(ctx, orderId);
-      const remainingSubtotal = deliveredSubtotal > previouslyInvoiced ? deliveredSubtotal - previouslyInvoiced : 0n;
-      if (remainingSubtotal <= 0n) {
-        throw new Error(`Order #${orderId} has no delivered subtotal remaining to invoice`);
-      }
-      if (subtotalFils > remainingSubtotal) {
-        throw new Error(`Invoice subtotal ${subtotalFils} exceeds delivered subtotal remaining for order #${orderId}: ${remainingSubtotal}`);
+      if (!isHistoricalImport) {
+        const deliveredSubtotal = computeDeliveredSubtotalForOrder(ctx, orderId);
+        const previouslyInvoiced = sumInvoicedForOrder(ctx, orderId);
+        const remainingSubtotal = deliveredSubtotal > previouslyInvoiced ? deliveredSubtotal - previouslyInvoiced : 0n;
+        if (remainingSubtotal <= 0n) {
+          throw new Error(`Order #${orderId} has no delivered subtotal remaining to invoice`);
+        }
+        if (subtotalFils > remainingSubtotal) {
+          throw new Error(`Invoice subtotal ${subtotalFils} exceeds delivered subtotal remaining for order #${orderId}: ${remainingSubtotal}`);
+        }
       }
     }
 
@@ -1252,8 +1356,8 @@ export function recordMoneyEventImpl(ctx: GenericCtx, args: {
       dueDate: args.dueDate,
       paidAt: undefined,
       createdBy: ctx.sender,
-      createdAt: ctx.timestamp,
-      updatedAt: ctx.timestamp,
+      createdAt: eventTimestamp,
+      updatedAt: eventTimestamp,
     });
 
     if (args.deliveryNoteId !== undefined) {
@@ -1300,15 +1404,17 @@ export function recordMoneyEventImpl(ctx: GenericCtx, args: {
   }
 
   if (args.kind.tag === 'CustomerPayment') {
-    let invoiced = 0n;
-    let paid = 0n;
-    for (const evt of ctx.db.moneyEvent.iter()) {
-      if (evt.partyId !== args.partyId) continue;
-      if (evt.kind.tag === 'CustomerInvoice') invoiced += evt.totalFils;
-      else if (evt.kind.tag === 'CustomerPayment') paid += evt.totalFils;
+    if (!isHistoricalImport) {
+      let invoiced = 0n;
+      let paid = 0n;
+      for (const evt of ctx.db.moneyEvent.iter()) {
+        if (evt.partyId !== args.partyId) continue;
+        if (evt.kind.tag === 'CustomerInvoice') invoiced += evt.totalFils;
+        else if (evt.kind.tag === 'CustomerPayment') paid += evt.totalFils;
+      }
+      const outstanding = invoiced > paid ? invoiced - paid : 0n;
+      if (args.subtotalFils > outstanding) throw new Error('Payment exceeds outstanding balance');
     }
-    const outstanding = invoiced > paid ? invoiced - paid : 0n;
-    if (args.subtotalFils > outstanding) throw new Error('Payment exceeds outstanding balance');
 
     const row = ctx.db.moneyEvent.insert({
       id: 0n,
@@ -1323,10 +1429,10 @@ export function recordMoneyEventImpl(ctx: GenericCtx, args: {
       reference: args.reference,
       sourceDate: args.sourceDate,
       dueDate: undefined,
-      paidAt: ctx.timestamp,
+      paidAt: eventTimestamp,
       createdBy: ctx.sender,
-      createdAt: ctx.timestamp,
-      updatedAt: ctx.timestamp,
+      createdAt: eventTimestamp,
+      updatedAt: eventTimestamp,
     });
 
     ctx.db.activityLog.insert({
@@ -1358,10 +1464,10 @@ export function recordMoneyEventImpl(ctx: GenericCtx, args: {
     reference: args.reference,
     sourceDate: args.sourceDate,
     dueDate: args.kind.tag === 'SupplierInvoice' ? args.dueDate : undefined,
-    paidAt: args.kind.tag === 'SupplierPayment' ? ctx.timestamp : undefined,
+    paidAt: args.kind.tag === 'SupplierPayment' ? eventTimestamp : undefined,
     createdBy: ctx.sender,
-    createdAt: ctx.timestamp,
-    updatedAt: ctx.timestamp,
+    createdAt: eventTimestamp,
+    updatedAt: eventTimestamp,
   });
 
   ctx.db.activityLog.insert({

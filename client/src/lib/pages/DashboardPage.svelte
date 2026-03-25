@@ -423,6 +423,123 @@
           { id: 'demo-4', severity: 'info', category: 'finance', title: 'Payments This Week', message: '3 payments received totalling BHD 12,500', createdAt: '' },
         ] as typeof businessAlerts
   );
+
+  let dashboardHeadline = $derived.by(() => {
+    if (!hasData) {
+      return {
+        title: 'PH operating picture is ready for command review',
+        subtitle: 'Seeded commercial, pipeline, and finance history is live. Use the dashboard to decide what needs attention first.',
+      };
+    }
+
+    if (displayAlerts[0]?.severity === 'critical') {
+      return {
+        title: 'Critical exceptions are driving today’s operating posture',
+        subtitle: displayAlerts[0]?.message ?? 'Review the highest-severity alerts before moving into execution.',
+      };
+    }
+
+    if (overdueCount > 0) {
+      return {
+        title: 'Collections pressure is the primary decision surface today',
+        subtitle: `${overdueCount} active overdue invoice${overdueCount === 1 ? '' : 's'} are visible across the seeded PH ledger.`,
+      };
+    }
+
+    if (followUps.overdue > 0) {
+      return {
+        title: 'Follow-up discipline is the main operating constraint today',
+        subtitle: `${followUps.overdue} follow-up item${followUps.overdue === 1 ? '' : 's'} have slipped beyond their due window.`,
+      };
+    }
+
+    return {
+      title: 'Commercial and finance signals are broadly in rhythm',
+      subtitle: 'Use the command band to jump into the next operating decision without digging through the hubs.',
+    };
+  });
+
+  let priorityDeck = $derived.by(() => {
+    const actions: Array<{
+      title: string;
+      detail: string;
+      tone: 'coral' | 'gold' | 'sage';
+      cta: string;
+      view: View;
+    }> = [];
+
+    if (displayAlerts[0]) {
+      actions.push({
+        title: displayAlerts[0].title,
+        detail: displayAlerts[0].message,
+        tone: displayAlerts[0].severity === 'critical' ? 'coral' : displayAlerts[0].severity === 'warning' ? 'gold' : 'sage',
+        cta: displayAlerts[0].actionLabel ?? 'Review',
+        view: displayAlerts[0].category === 'finance' ? 'finance' : displayAlerts[0].category === 'crm' ? 'crm' : 'sales',
+      });
+    }
+
+    if (displayOverdue[0]) {
+      actions.push({
+        title: `${displayOverdue[0].name} is the top debtor`,
+        detail: `${formatBHD(displayOverdue[0].amount)} BHD overdue across ${displayOverdue[0].invoiceCount} invoice${displayOverdue[0].invoiceCount === 1 ? '' : 's'}.`,
+        tone: 'coral',
+        cta: 'Open Finance',
+        view: 'finance',
+      });
+    }
+
+    if (displayFollowUps[0]) {
+      actions.push({
+        title: 'Next follow-up to clear',
+        detail: `${displayFollowUps[0].detail} · ${displayFollowUps[0].dueLabel}`,
+        tone: displayFollowUps[0].urgency === 'overdue' ? 'coral' : displayFollowUps[0].urgency === 'today' ? 'gold' : 'sage',
+        cta: 'Open Chat',
+        view: 'chat',
+      });
+    }
+
+    if (actions.length === 0) {
+      actions.push({
+        title: 'No acute pressure is visible',
+        detail: 'Shift attention toward pipeline advancement, relationship development, or proactive finance hygiene.',
+        tone: 'sage',
+        cta: 'Open Sales',
+        view: 'sales',
+      });
+    }
+
+    return actions.slice(0, 3);
+  });
+
+  let commandShortcuts = $derived([
+    {
+      label: 'Chase Debtors',
+      detail: `${displayOverdue.length} accounts flagged`,
+      view: 'finance' as View,
+    },
+    {
+      label: 'Push Pipeline',
+      detail: `${activePipelineCount} active deals`,
+      view: 'sales' as View,
+    },
+    {
+      label: 'Review Customers',
+      detail: `${dashboardMetrics.customerCount} customer records`,
+      view: 'crm' as View,
+    },
+    {
+      label: 'Ask Butler',
+      detail: 'Use seeded context in chat',
+      view: 'chat' as View,
+    },
+  ]);
+
+  let operatingPulse = $derived([
+    { label: 'Customers', value: hasData ? String(dashboardMetrics.customerCount) : '391' },
+    { label: 'Suppliers', value: hasData ? String(dashboardMetrics.supplierCount) : '34' },
+    { label: 'Open Orders', value: hasData ? String(dashboardMetrics.activeOrderCount) : '27' },
+    { label: 'Alerts', value: hasData ? String(displayAlerts.length) : '4' },
+  ]);
 </script>
 
 <div class="dashboard">
@@ -435,8 +552,60 @@
     </div>
   </header>
 
+  <section class="command-band" use:enter={{ index: 1 }}>
+    <article class="command-hero card">
+      <span class="command-kicker">Operating Focus</span>
+      <h2 class="command-title">{dashboardHeadline.title}</h2>
+      <p class="command-subtitle">{dashboardHeadline.subtitle}</p>
+
+      <div class="command-shortcuts">
+        {#each commandShortcuts as shortcut}
+          <button class="command-shortcut" type="button" onclick={() => navigateTo(shortcut.view)}>
+            <span class="command-shortcut-label">{shortcut.label}</span>
+            <span class="command-shortcut-detail">{shortcut.detail}</span>
+          </button>
+        {/each}
+      </div>
+    </article>
+
+    <article class="command-panel card">
+      <div class="section-header">
+        <span class="section-title">PRIORITIES</span>
+      </div>
+
+      <div class="priority-list">
+        {#each priorityDeck as item}
+          <div class="priority-item priority-item--{item.tone}">
+            <div class="priority-copy">
+              <span class="priority-title">{item.title}</span>
+              <span class="priority-detail">{item.detail}</span>
+            </div>
+            <button class="priority-cta" type="button" onclick={() => navigateTo(item.view)}>
+              {item.cta}
+            </button>
+          </div>
+        {/each}
+      </div>
+    </article>
+
+    <article class="command-panel card">
+      <div class="section-header">
+        <span class="section-title">SYSTEM PULSE</span>
+      </div>
+
+      <div class="pulse-grid">
+        {#each operatingPulse as pulse}
+          <div class="pulse-item">
+            <span class="pulse-label">{pulse.label}</span>
+            <span class="pulse-value">{pulse.value}</span>
+          </div>
+        {/each}
+      </div>
+    </article>
+  </section>
+
   <!-- ── KPI Strip ─────────────────────────────────────────────────────── -->
-  <section class="kpi-strip" use:enter={{ index: 1 }}>
+  <section class="kpi-strip" use:enter={{ index: 2 }}>
 
     <!-- Revenue MTD -->
     <KPICard
@@ -481,7 +650,7 @@
   </section>
 
   <!-- ── Bottom section: 5:3 ───────────────────────────────────────────── -->
-  <section class="mini-strip" use:enter={{ index: 2 }}>
+  <section class="mini-strip" use:enter={{ index: 3 }}>
     <div class="mini-card">
       <span class="mini-label">Cash Position</span>
       <span class="mini-value">{miniCashPosition} BHD</span>
@@ -499,7 +668,7 @@
     </div>
   </section>
 
-  <div class="dash-bottom" use:enter={{ index: 3 }}>
+  <div class="dash-bottom" use:enter={{ index: 4 }}>
 
     <!-- LEFT — Overdue Decision Cards -->
     <section class="overdue-section">
@@ -601,7 +770,7 @@
   </div>
 
   <!-- Cash Forecast -->
-  <section class="cash-forecast-section" use:enter={{ index: 5 }}>
+  <section class="cash-forecast-section" use:enter={{ index: 6 }}>
     <h2 class="section-title">Cash Forecast</h2>
     <div class="cash-forecast-grid">
       <!-- Current position card -->
@@ -654,7 +823,7 @@
   </section>
 
   <!-- Follow-Up Tasks -->
-  <section class="followup-section" use:enter={{ index: 6 }}>
+  <section class="followup-section" use:enter={{ index: 7 }}>
     <div class="section-header">
       <h2 class="section-title">Follow-Ups</h2>
       <div class="followup-summary-chips">
@@ -704,7 +873,7 @@
   </section>
 
   <!-- Business Alerts -->
-  <section class="alerts-section" use:enter={{ index: 7 }}>
+  <section class="alerts-section" use:enter={{ index: 8 }}>
     <div class="section-header">
       <h2 class="section-title">Alerts</h2>
       <div class="alert-count-chips">
@@ -760,6 +929,179 @@
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
+  }
+
+  .command-band {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, 0.72fr);
+    gap: var(--sp-16);
+    align-items: stretch;
+  }
+
+  .command-hero,
+  .command-panel {
+    min-height: 100%;
+    padding: var(--sp-21);
+  }
+
+  .command-hero {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-13);
+    background:
+      radial-gradient(circle at top left, rgba(214, 183, 111, 0.16), transparent 42%),
+      linear-gradient(135deg, rgba(122, 159, 128, 0.08), rgba(255, 255, 255, 0.5)),
+      var(--paper-card);
+  }
+
+  .command-kicker {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+
+  .command-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 1.2vw + 1.2rem, 2.5rem);
+    line-height: 1.02;
+    color: var(--ink);
+    max-width: 14ch;
+  }
+
+  .command-subtitle {
+    margin: 0;
+    max-width: 58ch;
+    font-size: var(--text-sm);
+    line-height: 1.55;
+    color: var(--ink-40);
+  }
+
+  .command-shortcuts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-10);
+    margin-top: auto;
+  }
+
+  .command-shortcut {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: var(--sp-13);
+    border: 1px solid rgba(28, 28, 28, 0.06);
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.55);
+    cursor: pointer;
+    text-align: left;
+    transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+  }
+
+  .command-shortcut:hover {
+    transform: translateY(-1px);
+    border-color: rgba(214, 183, 111, 0.28);
+  }
+
+  .command-shortcut-label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .command-shortcut-detail {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-30);
+  }
+
+  .priority-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-10);
+    margin-top: var(--sp-13);
+  }
+
+  .priority-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--sp-10);
+    padding: var(--sp-13);
+    border-radius: var(--radius-md);
+    background: var(--ink-03);
+    border-left: 3px solid transparent;
+  }
+
+  .priority-item--coral { border-left-color: var(--coral); }
+  .priority-item--gold { border-left-color: var(--gold); }
+  .priority-item--sage { border-left-color: var(--sage); }
+
+  .priority-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .priority-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .priority-detail {
+    font-size: var(--text-xs);
+    line-height: 1.45;
+    color: var(--ink-40);
+  }
+
+  .priority-cta {
+    align-self: center;
+    padding: var(--sp-5) var(--sp-10);
+    border: none;
+    border-radius: var(--radius-pill);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .pulse-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-10);
+    margin-top: var(--sp-13);
+  }
+
+  .pulse-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: var(--sp-13);
+    border-radius: var(--radius-md);
+    background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(28,28,28,0.02));
+  }
+
+  .pulse-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-30);
+  }
+
+  .pulse-value {
+    font-family: var(--font-data);
+    font-size: var(--text-lg);
+    color: var(--ink);
   }
 
   .greeting {
@@ -826,11 +1168,20 @@
   }
 
   @media (max-width: 900px) {
+    .command-band { grid-template-columns: 1fr; }
+    .command-shortcuts { grid-template-columns: 1fr 1fr; }
+    .pulse-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .kpi-strip { grid-template-columns: repeat(2, 1fr); }
     .mini-strip { grid-template-columns: 1fr; }
   }
 
   @media (max-width: 500px) {
+    .command-shortcuts { grid-template-columns: 1fr; }
+    .pulse-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .priority-item {
+      flex-direction: column;
+      align-items: stretch;
+    }
     .kpi-strip { grid-template-columns: 1fr; }
   }
 

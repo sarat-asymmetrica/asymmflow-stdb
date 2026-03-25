@@ -403,6 +403,9 @@ const tablesSchema = __schema({
       { name: 'order_by_party', algorithm: 'btree', columns: [
         'partyId',
       ] },
+      { name: 'order_by_pipeline', algorithm: 'btree', columns: [
+        'pipelineId',
+      ] },
       { name: 'order_by_status', algorithm: 'btree', columns: [
         'status',
       ] },

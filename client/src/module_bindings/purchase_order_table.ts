@@ -20,6 +20,7 @@ export default __t.row({
   orderId: __t.option(__t.u64()).name("order_id"),
   poNumber: __t.string().name("po_number"),
   deliveryTerms: __t.string().name("delivery_terms"),
+  source: __t.string(),
   get status() {
     return EntityStatus;
   },

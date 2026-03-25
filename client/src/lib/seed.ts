@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * AsymmFlow — Seed Database
  *

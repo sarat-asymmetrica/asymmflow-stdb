@@ -19,6 +19,7 @@ export default {
   partyId: __t.u64(),
   orderId: __t.option(__t.u64()),
   deliveryTerms: __t.option(__t.string()),
+  source: __t.option(__t.string()),
   get newStatus() {
     return EntityStatus;
   },

@@ -8,8 +8,17 @@
   import type { QuotationItem } from '../documents/quotationGenerator';
   import { enter } from '$lib/motion/asymm-motion';
   import { loadRFQStore, computeRFQDashboard, type RFQDashboard } from '../business/rfqManagement';
+  import { activeView, type View } from '../stores';
 
   let activeTab = $state<'pipeline' | 'won' | 'lost' | 'rfqs'>('pipeline');
+
+  function navigateTo(view: View) {
+    activeView.set(view);
+  }
+
+  function setSalesTab(tab: typeof activeTab) {
+    activeTab = tab;
+  }
 
   // ── RFQ state ───────────────────────────────────────────────────────────
   let rfqStore = $state(loadRFQStore());
@@ -299,7 +308,7 @@
 
   // Current tab rows
   let currentRows = $derived.by(() =>
-    activeTab === 'won' ? wonRows : activeTab === 'lost' ? lostRows : activeRows
+    activeTab === 'won' ? wonRows : activeTab === 'lost' ? lostRows : activeTab === 'pipeline' ? activeRows : []
   );
 
   let currentTotalFils = $derived(currentRows.reduce((s, r) => s + r.valueFils, 0n));
@@ -315,6 +324,170 @@
 
   // Unassigned flag (no owner on active deals)
   let unassignedCount = $derived(activeRows.filter(r => r.owner === '—').length);
+
+  let topPipelineDeal = $derived(activeRows[0] ?? null);
+  let urgentFollowUpDeal = $derived.by(() => {
+    const withFollowUp = activeRows.filter(row => row.nextFollowUp !== '—');
+    return withFollowUp[0] ?? topPipelineDeal;
+  });
+  let topWonDeal = $derived(wonRows[0] ?? null);
+  let topLostDeal = $derived(lostRows[0] ?? null);
+  let priceLossDeals = $derived(lostRows.filter(r => r.lossReason?.toLowerCase().includes('price')));
+  let overdueRfqs = $derived(rfqDashboard.overdue);
+  let dueSoonRfqs = $derived(rfqDashboard.dueSoon);
+
+  let salesHeadline = $derived.by(() => {
+    if (activeTab === 'rfqs') {
+      if (overdueRfqs.length > 0) {
+        return {
+          eyebrow: 'Commercial Pressure',
+          title: `${overdueRfqs.length} RFQ${overdueRfqs.length === 1 ? '' : 's'} need an immediate response`,
+          subtitle: `Keep proposal work moving. ${dueSoonRfqs.length} more are due inside the next window.`,
+        };
+      }
+      return {
+        eyebrow: 'Commercial Pressure',
+        title: `${displayRfqs.length} RFQs are in motion across the desk`,
+        subtitle: `Use this lane to clear costing, reviews, and quoted follow-through without losing handoff context.`,
+      };
+    }
+    if (topPipelineDeal) {
+      return {
+        eyebrow: 'Commercial Pressure',
+        title: `${topPipelineDeal.customer} anchors the current active book`,
+        subtitle: `${topPipelineDeal.title} is the largest live opportunity at ${formatBHDCompact(topPipelineDeal.valueFils)} BHD with ${unassignedCount} deal${unassignedCount === 1 ? '' : 's'} still unassigned.`,
+      };
+    }
+    return {
+      eyebrow: 'Commercial Pressure',
+      title: 'The sales surface is ready for the next opportunity wave',
+      subtitle: 'As quotes and RFQs arrive, this hub will surface ownership, follow-ups, and learning loops automatically.',
+    };
+  });
+
+  let salesPriorityDeck = $derived.by(() => {
+    const items: Array<{
+      label: string;
+      title: string;
+      detail: string;
+      tone: 'gold' | 'coral' | 'sage';
+      cta: string;
+      action: () => void;
+    }> = [];
+
+    if (urgentFollowUpDeal) {
+      items.push({
+        label: 'Follow-Up',
+        title: urgentFollowUpDeal.title,
+        detail: `${urgentFollowUpDeal.customer} · ${formatBHDCompact(urgentFollowUpDeal.valueFils)} BHD · next touch ${urgentFollowUpDeal.nextFollowUp}`,
+        tone: 'gold',
+        cta: 'View Pipeline',
+        action: () => setSalesTab('pipeline'),
+      });
+    }
+
+    if (unassignedCount > 0) {
+      items.push({
+        label: 'Coverage',
+        title: `${unassignedCount} active deal${unassignedCount === 1 ? '' : 's'} need an owner`,
+        detail: `Assignment clarity matters now while the live book is worth ${formatBHDCompact(totalPipelineFils)} BHD.`,
+        tone: 'coral',
+        cta: 'Review Pipeline',
+        action: () => setSalesTab('pipeline'),
+      });
+    }
+
+    if (priceLossDeals.length > 0) {
+      items.push({
+        label: 'Learning Loop',
+        title: `${priceLossPct}% of losses were price-led`,
+        detail: topLostDeal
+          ? `${topLostDeal.customer} lost ${formatBHDCompact(topLostDeal.valueFils)} BHD. Tighten positioning before the next similar bid.`
+          : 'Recent closed-lost deals point to pricing pressure in the market.',
+        tone: 'coral',
+        cta: 'Review Losses',
+        action: () => setSalesTab('lost'),
+      });
+    }
+
+    if (topWonDeal) {
+      items.push({
+        label: 'Momentum',
+        title: `${topWonDeal.customer} is the strongest recent conversion`,
+        detail: `${topWonDeal.title} closed at ${formatBHDCompact(topWonDeal.valueFils)} BHD with ${(topWonDeal.marginBps / 100).toFixed(1)}% markup.`,
+        tone: 'sage',
+        cta: 'Open Won',
+        action: () => setSalesTab('won'),
+      });
+    }
+
+    if (overdueRfqs.length > 0 || dueSoonRfqs.length > 0) {
+      items.push({
+        label: 'RFQ Desk',
+        title: overdueRfqs.length > 0
+          ? `${overdueRfqs.length} RFQ${overdueRfqs.length === 1 ? '' : 's'} are overdue`
+          : `${dueSoonRfqs.length} RFQ${dueSoonRfqs.length === 1 ? '' : 's'} are due soon`,
+        detail: `Stay on top of ${rfqDashboard.total || displayRfqs.length} inbound requests to protect conversion throughput.`,
+        tone: overdueRfqs.length > 0 ? 'coral' : 'gold',
+        cta: 'Open RFQs',
+        action: () => setSalesTab('rfqs'),
+      });
+    }
+
+    return items.slice(0, 4);
+  });
+
+  let commandShortcuts = $derived([
+    {
+      label: 'Quote Desk',
+      hint: topPipelineDeal ? `${topPipelineDeal.customer} · ${formatBHDCompact(topPipelineDeal.valueFils)} BHD` : 'Prepare and issue quotation packs',
+      action: () => {
+        if (topPipelineDeal) {
+          openQuoteModal(topPipelineDeal);
+        } else {
+          setSalesTab('pipeline');
+        }
+      },
+    },
+    {
+      label: 'RFQ Queue',
+      hint: `${rfqDashboard.total || displayRfqs.length} active requests`,
+      action: () => setSalesTab('rfqs'),
+    },
+    {
+      label: 'Won Deals',
+      hint: `${wonRows.length} closed-won opportunities`,
+      action: () => setSalesTab('won'),
+    },
+    {
+      label: 'CRM Context',
+      hint: 'Jump into relationship history',
+      action: () => navigateTo('crm'),
+    },
+  ]);
+
+  let commercialPulse = $derived([
+    {
+      label: 'Pipeline Coverage',
+      value: `${activeRows.length} live`,
+      detail: formatBHDCompact(totalPipelineFils) + ' BHD',
+    },
+    {
+      label: 'RFQ Throughput',
+      value: `${rfqDashboard.winRate.toFixed(0)}%`,
+      detail: `${rfqDashboard.total || displayRfqs.length} tracked RFQs`,
+    },
+    {
+      label: 'Price Pressure',
+      value: `${priceLossPct}%`,
+      detail: `${priceLossCount} price-led losses`,
+    },
+    {
+      label: 'Cross-Team Hand-Off',
+      value: `${unassignedCount}`,
+      detail: unassignedCount > 0 ? 'deals need ownership' : 'all active deals assigned',
+    },
+  ]);
 
   // ── Color helpers ─────────────────────────────────────────────────────────
 
@@ -457,6 +630,61 @@
     </div>
   </header>
 
+  <section class="command-band" use:enter={{ index: 1 }}>
+    <div class="command-hero card">
+      <div class="command-copy">
+        <p class="command-eyebrow">{salesHeadline.eyebrow}</p>
+        <h2 class="command-title">{salesHeadline.title}</h2>
+        <p class="command-subtitle">{salesHeadline.subtitle}</p>
+      </div>
+      <div class="command-shortcuts">
+        {#each commandShortcuts as shortcut}
+          <button class="command-shortcut" type="button" onclick={shortcut.action}>
+            <span class="command-shortcut-label">{shortcut.label}</span>
+            <span class="command-shortcut-hint">{shortcut.hint}</span>
+          </button>
+        {/each}
+      </div>
+    </div>
+
+    <div class="command-panel card">
+      <div class="panel-header">
+        <p class="panel-eyebrow">Priority Deck</p>
+        <span class="panel-caption">What to act on next</span>
+      </div>
+      <div class="priority-list">
+        {#each salesPriorityDeck as item}
+          <article class={`priority-item priority-item--${item.tone}`}>
+            <div class="priority-copy">
+              <p class="priority-label">{item.label}</p>
+              <h3 class="priority-title">{item.title}</h3>
+              <p class="priority-detail">{item.detail}</p>
+            </div>
+            <button class="priority-cta" type="button" onclick={item.action}>
+              {item.cta}
+            </button>
+          </article>
+        {/each}
+      </div>
+    </div>
+
+    <div class="command-panel card">
+      <div class="panel-header">
+        <p class="panel-eyebrow">Commercial Pulse</p>
+        <span class="panel-caption">Seeded system status</span>
+      </div>
+      <div class="pulse-grid">
+        {#each commercialPulse as pulse}
+          <article class="pulse-card">
+            <span class="pulse-label">{pulse.label}</span>
+            <strong class="pulse-value">{pulse.value}</strong>
+            <span class="pulse-detail">{pulse.detail}</span>
+          </article>
+        {/each}
+      </div>
+    </div>
+  </section>
+
   <!-- ── Tabs ───────────────────────────────────────────────────────────── -->
   <nav class="tabs" aria-label="Sales view">
     <button
@@ -539,7 +767,7 @@
         <span class="stat-number">{avgMargin.toFixed(1)}%</span>
         <span class="stat-currency">markup</span>
       </div>
-    {:else}
+    {:else if activeTab === 'lost'}
       <div class="stat-card card-subtle stat-card--coral">
         <span class="stat-label">Lost Value</span>
         <span class="stat-number stat-number--coral">{formatBHD(totalLostFils)}</span>
@@ -560,6 +788,27 @@
         <span class="stat-number stat-number--coral">{priceLossPct}%</span>
         <span class="stat-currency">of lost</span>
       </div>
+    {:else}
+      <div class="stat-card card-subtle">
+        <span class="stat-label">Tracked RFQs</span>
+        <span class="stat-number">{rfqDashboard.total || displayRfqs.length}</span>
+        <span class="stat-currency">requests</span>
+      </div>
+      <div class="stat-card card-subtle stat-card--coral">
+        <span class="stat-label">Overdue</span>
+        <span class="stat-number stat-number--coral">{rfqDashboard.overdue.length}</span>
+        <span class="stat-currency">needs response</span>
+      </div>
+      <div class="stat-card card-subtle">
+        <span class="stat-label">Due Soon</span>
+        <span class="stat-number">{rfqDashboard.dueSoon.length}</span>
+        <span class="stat-currency">next window</span>
+      </div>
+      <div class="stat-card card-subtle stat-card--sage">
+        <span class="stat-label">Win Rate</span>
+        <span class="stat-number stat-number--sage">{rfqDashboard.winRate.toFixed(0)}%</span>
+        <span class="stat-currency">quoted to won</span>
+      </div>
     {/if}
   </div>
 
@@ -577,13 +826,13 @@
   {/if}
 
   <!-- ── Table ──────────────────────────────────────────────────────────── -->
-  {#if currentRows.length === 0}
+  {#if activeTab !== 'rfqs' && currentRows.length === 0}
     <div class="empty">
       <p class="empty-text">
         {#if activeTab === 'won'}No won deals yet{:else if activeTab === 'lost'}No lost deals yet{:else}No active pipeline items{/if}
       </p>
     </div>
-  {:else}
+  {:else if activeTab !== 'rfqs'}
     <div class="table-shell card">
       <div class="table-scroll">
         <table class="data-table">
@@ -869,6 +1118,240 @@
     display: flex;
     flex-direction: column;
     gap: var(--sp-13);
+  }
+
+  .command-band {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(300px, 1fr) minmax(260px, 0.88fr);
+    gap: var(--sp-13);
+    align-items: stretch;
+  }
+
+  .command-hero {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--sp-16);
+    padding: var(--sp-18);
+    min-height: 100%;
+    background:
+      radial-gradient(circle at top right, rgba(197, 160, 89, 0.18), transparent 36%),
+      linear-gradient(140deg, rgba(255, 255, 255, 0.88), rgba(249, 244, 236, 0.96));
+  }
+
+  .command-copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+  }
+
+  .command-eyebrow,
+  .panel-eyebrow {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-40);
+  }
+
+  .command-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(1.7rem, 2.2vw, 2.4rem);
+    line-height: 0.98;
+    letter-spacing: -0.04em;
+    color: var(--ink);
+    max-width: 12ch;
+  }
+
+  .command-subtitle {
+    margin: 0;
+    max-width: 58ch;
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+    color: var(--ink-60);
+  }
+
+  .command-shortcuts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-8);
+  }
+
+  .command-shortcut {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+    align-items: flex-start;
+    padding: var(--sp-13);
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.72);
+    cursor: pointer;
+    text-align: left;
+    transition: transform var(--dur-fast) var(--ease-out),
+      box-shadow var(--dur-fast) var(--ease-out),
+      border-color var(--dur-fast) var(--ease-out);
+  }
+
+  .command-shortcut:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-neu-raised);
+    border-color: rgba(197, 160, 89, 0.22);
+  }
+
+  .command-shortcut-label {
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .command-shortcut-hint {
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+    line-height: 1.45;
+    color: var(--ink-40);
+  }
+
+  .command-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-13);
+    padding: var(--sp-16);
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-8);
+  }
+
+  .panel-caption {
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+    color: var(--ink-40);
+  }
+
+  .priority-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+  }
+
+  .priority-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-10);
+    padding: var(--sp-13);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(17, 24, 39, 0.06);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(249, 247, 242, 0.82));
+  }
+
+  .priority-item--gold {
+    box-shadow: inset 3px 0 0 rgba(197, 160, 89, 0.55);
+  }
+
+  .priority-item--coral {
+    box-shadow: inset 3px 0 0 rgba(210, 102, 93, 0.55);
+  }
+
+  .priority-item--sage {
+    box-shadow: inset 3px 0 0 rgba(95, 140, 110, 0.55);
+  }
+
+  .priority-copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+  }
+
+  .priority-label {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-40);
+  }
+
+  .priority-title {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: var(--text-md);
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .priority-detail {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+    line-height: 1.55;
+    color: var(--ink-60);
+  }
+
+  .priority-cta {
+    align-self: flex-start;
+    height: 34px;
+    padding: 0 var(--sp-13);
+    border: none;
+    border-radius: var(--radius-pill);
+    background: var(--paper-card);
+    box-shadow: var(--shadow-neu-btn);
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gold);
+    cursor: pointer;
+  }
+
+  .pulse-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-8);
+  }
+
+  .pulse-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: var(--sp-10);
+    border-radius: var(--radius-md);
+    background: var(--paper-elevated);
+    box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.04);
+  }
+
+  .pulse-label {
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-40);
+  }
+
+  .pulse-value {
+    font-family: var(--font-data);
+    font-size: var(--text-lg);
+    font-weight: 500;
+    color: var(--ink);
+    letter-spacing: -0.03em;
+  }
+
+  .pulse-detail {
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+    line-height: 1.45;
+    color: var(--ink-40);
   }
 
   .section-label {
@@ -1296,6 +1779,19 @@
     font-size: var(--text-sm);
     color: var(--ink-30);
     margin: 0;
+  }
+
+  @media (max-width: 1120px) {
+    .command-band {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 820px) {
+    .command-shortcuts,
+    .pulse-grid {
+      grid-template-columns: 1fr;
+    }
   }
 
   /* ── Column widths ───────────────────────────────────────────────────── */

@@ -2,13 +2,59 @@
   // CRMHub.svelte — V4 Rams × Neumorphic
   // Customers with grade tabs, card grid, search
 
-  import { parties, contacts, moneyEvents } from '../db';
-  import { formatBHD, formatRelative } from '../format';
+  import { parties, contacts, moneyEvents, pipelines, orders } from '../db';
+  import { formatBHD, formatDate, formatRelative } from '../format';
   import CreatePartyModal from '../components/CreatePartyModal.svelte';
   import Customer360Modal from '../components/Customer360Modal.svelte';
   import { enter } from '$lib/motion/asymm-motion';
 
   const PAGE_SIZE = 50;
+
+  type CustomerCardRow = {
+    id: bigint;
+    name: string;
+    fullName: string;
+    grade: string;
+    category: string;
+    totalRevenue: string;
+    totalRevenueFils: bigint;
+    outstanding: string;
+    outstandingFils: bigint;
+    lastOrder: string;
+    contact: string;
+    phone: string;
+    paymentTerms: string;
+    creditLimit: string;
+    creditBlocked: boolean;
+    notes: string;
+    code?: string;
+    city?: string;
+    source?: string;
+    pipelineCount?: number;
+  };
+
+  type SupplierCardRow = {
+    id: bigint;
+    name: string;
+    fullName: string;
+    productTypes: string;
+    totalSpend: string;
+    totalSpendFils: bigint;
+    payable: string;
+    payableFils: bigint;
+    contact: string;
+    phone: string;
+    paymentTerms: string;
+    notes: string;
+    bankIban: string;
+    bankSwift: string;
+    bankAccountName: string;
+    hasBankDetails: boolean;
+    code?: string;
+    category?: string;
+    city?: string;
+    source?: string;
+  };
 
   let viewMode         = $state<'customers' | 'suppliers'>('customers');
   let showCreateParty  = $state(false);
@@ -17,9 +63,11 @@
 
   let customerSearch   = $state('');
   let customerShowAll  = $state(false);
+  let customerFocus    = $state<'all' | 'overdue' | 'blocked' | 'missing-contact' | 'no-pipeline'>('all');
 
   let supplierSearch   = $state('');
   let supplierShowAll  = $state(false);
+  let supplierFocus    = $state<'all' | 'payable' | 'missing-bank' | 'missing-contact' | 'advance-only'>('all');
 
   const tabs = [
     { id: 'all',  label: 'All' },
@@ -30,7 +78,7 @@
 
   // ── Demo data (shown when live data is empty) ──────────────
 
-  const DEMO_CUSTOMERS = [
+  const DEMO_CUSTOMERS: CustomerCardRow[] = [
     {
       id: 1n,
       name: 'EWA',
@@ -213,7 +261,7 @@
     },
   ];
 
-  const DEMO_SUPPLIERS = [
+  const DEMO_SUPPLIERS: SupplierCardRow[] = [
     {
       id: 101n,
       name: 'Endress+Hauser',
@@ -308,11 +356,13 @@
 
   // ── Live data ──────────────────────────────────────────
 
-  let allCustomers = $derived.by(() => {
+  let allCustomers = $derived.by((): CustomerCardRow[] => {
     return $parties.filter(p => p.isCustomer).map(p => {
       const grade = (p.grade as any)?.tag ?? '?';
       const partyContacts = $contacts.filter(c => c.partyId === p.id);
       const primaryContact = partyContacts[0];
+      const partyOrders = $orders.filter(o => o.partyId === p.id);
+      const partyPipelines = $pipelines.filter(pl => pl.partyId === p.id);
 
       // Compute revenue and outstanding from moneyEvents
       const partyEvents = $moneyEvents.filter(e => e.partyId === p.id);
@@ -324,17 +374,26 @@
         .reduce((s, e) => s + e.totalFils, 0n);
       const outstanding = invoiced > paid ? invoiced - paid : 0n;
 
+      const latestOrder = partyOrders.reduce<typeof partyOrders[number] | null>((latest, order) => {
+        if (!latest) return order;
+        return order.createdAt.microsSinceUnixEpoch > latest.createdAt.microsSinceUnixEpoch ? order : latest;
+      }, null);
+
       return {
         id: p.id,
         name: p.name,
         fullName: p.name,
         grade,
-        category: p.productTypes ?? '',
+        code: p.code ?? '',
+        category: p.category ?? '',
+        city: p.city ?? '',
+        source: p.source ?? '',
+        pipelineCount: partyPipelines.length,
         totalRevenue: (Number(invoiced) / 1000).toLocaleString('en-BH', { minimumFractionDigits: 3, maximumFractionDigits: 3 }),
         totalRevenueFils: invoiced,
         outstanding: (Number(outstanding) / 1000).toLocaleString('en-BH', { minimumFractionDigits: 3, maximumFractionDigits: 3 }),
         outstandingFils: outstanding,
-        lastOrder: '—',
+        lastOrder: latestOrder ? formatDate(latestOrder.createdAt) : '—',
         contact: primaryContact?.name ?? '—',
         phone: primaryContact?.phone ?? '',
         paymentTerms: `Net ${Number(p.paymentTermsDays)}`,
@@ -347,11 +406,19 @@
 
   let useLiveData = $derived(allCustomers.length > 0);
 
-  let displayCustomers = $derived(useLiveData ? allCustomers : DEMO_CUSTOMERS);
+  let displayCustomers = $derived(
+    (useLiveData ? allCustomers : DEMO_CUSTOMERS).map((customer) => ({
+      code: '',
+      city: '',
+      source: '',
+      pipelineCount: 0,
+      ...customer,
+    }))
+  );
 
   // ── Supplier live data ──────────────────────────────────
 
-  let allSuppliers = $derived.by(() => {
+  let allSuppliers = $derived.by((): SupplierCardRow[] => {
     return $parties.filter(p => p.isSupplier).map(p => {
       const partyContacts = $contacts.filter(c => c.partyId === p.id);
       const primaryContact = partyContacts[0];
@@ -370,6 +437,10 @@
         id: p.id,
         name: p.name,
         fullName: p.name,
+        code: p.code ?? '',
+        category: p.category ?? '',
+        city: p.city ?? '',
+        source: p.source ?? '',
         productTypes: p.productTypes ?? '',
         totalSpend: (Number(invoiced) / 1000).toLocaleString('en-BH', { minimumFractionDigits: 3, maximumFractionDigits: 3 }),
         totalSpendFils: invoiced,
@@ -387,13 +458,25 @@
     });
   });
 
-  let displaySuppliers = $derived(allSuppliers.length > 0 ? allSuppliers : DEMO_SUPPLIERS);
+  let displaySuppliers = $derived(
+    (allSuppliers.length > 0 ? allSuppliers : DEMO_SUPPLIERS).map((supplier) => ({
+      code: '',
+      category: '',
+      city: '',
+      source: '',
+      ...supplier,
+    }))
+  );
   let useLiveSupplierData = $derived(allSuppliers.length > 0);
 
   let filteredSuppliers = $derived.by(() => {
     const q = supplierSearch.trim().toLowerCase();
     return (displaySuppliers as typeof DEMO_SUPPLIERS).filter(s => {
       if (q && !s.name.toLowerCase().includes(q) && !s.productTypes.toLowerCase().includes(q)) return false;
+      if (supplierFocus === 'payable' && s.payableFils <= 0n) return false;
+      if (supplierFocus === 'missing-bank' && s.hasBankDetails) return false;
+      if (supplierFocus === 'missing-contact' && (!s.contact || s.contact === '—')) return false;
+      if (supplierFocus === 'advance-only' && !s.paymentTerms.toLowerCase().includes('advance')) return false;
       return true;
     });
   });
@@ -432,6 +515,10 @@
     return (displayCustomers as typeof DEMO_CUSTOMERS).filter(c => {
       if (gradeFilter && c.grade !== gradeFilter) return false;
       if (q && !c.name.toLowerCase().includes(q) && !(c.fullName ?? '').toLowerCase().includes(q)) return false;
+      if (customerFocus === 'overdue' && c.outstandingFils <= 0n) return false;
+      if (customerFocus === 'blocked' && !c.creditBlocked) return false;
+      if (customerFocus === 'missing-contact' && (!c.contact || c.contact === '—')) return false;
+      if (customerFocus === 'no-pipeline' && (c.pipelineCount ?? 0) > 0) return false;
       return true;
     });
   });
@@ -456,8 +543,13 @@
   // ── Reset pagination on filter change ────────────────
 
   $effect(() => {
-    customerSearch; activeTab;
+    customerSearch; activeTab; customerFocus;
     customerShowAll = false;
+  });
+
+  $effect(() => {
+    supplierSearch; supplierFocus;
+    supplierShowAll = false;
   });
 
   // ── Helpers ───────────────────────────────────────────
@@ -468,6 +560,36 @@
     C: 'amber',
     D: 'coral',
   };
+
+  let customerSummary = $derived.by(() => {
+    const rows = displayCustomers as typeof DEMO_CUSTOMERS;
+    const topDebtor = [...rows].sort((a, b) => (a.outstandingFils < b.outstandingFils ? 1 : -1))[0];
+    const topAccount = [...rows].sort((a, b) => (a.totalRevenueFils < b.totalRevenueFils ? 1 : -1))[0];
+    return {
+      totalRevenueFils: rows.reduce((sum, row) => sum + row.totalRevenueFils, 0n),
+      totalOutstandingFils: rows.reduce((sum, row) => sum + row.outstandingFils, 0n),
+      blockedCount: rows.filter((row) => row.creditBlocked).length,
+      missingContactCount: rows.filter((row) => !row.contact || row.contact === '—').length,
+      noPipelineCount: rows.filter((row) => (row.pipelineCount ?? 0) === 0).length,
+      topDebtor,
+      topAccount,
+    };
+  });
+
+  let supplierSummary = $derived.by(() => {
+    const rows = displaySuppliers as typeof DEMO_SUPPLIERS;
+    const topPayable = [...rows].sort((a, b) => (a.payableFils < b.payableFils ? 1 : -1))[0];
+    const topSpend = [...rows].sort((a, b) => (a.totalSpendFils < b.totalSpendFils ? 1 : -1))[0];
+    return {
+      totalSpendFils: rows.reduce((sum, row) => sum + row.totalSpendFils, 0n),
+      totalPayableFils: rows.reduce((sum, row) => sum + row.payableFils, 0n),
+      missingBankCount: rows.filter((row) => !row.hasBankDetails).length,
+      missingContactCount: rows.filter((row) => !row.contact || row.contact === '—').length,
+      advanceOnlyCount: rows.filter((row) => row.paymentTerms.toLowerCase().includes('advance')).length,
+      topPayable,
+      topSpend,
+    };
+  });
 </script>
 
 <div class="hub-page">
@@ -476,7 +598,7 @@
   <header class="hub-header" use:enter={{ index: 0 }}>
     <div class="hub-title-group">
       <h1 class="hub-title">{viewMode === 'customers' ? 'CUSTOMERS' : 'SUPPLIERS'}</h1>
-      <p class="hub-count">{viewMode === 'customers' ? displayCustomers.length : displaySuppliers.length} total</p>
+      <p class="hub-count">{viewMode === 'customers' ? displayCustomers.length : displaySuppliers.length} total in the live PH relationship ledger</p>
     </div>
 
     <!-- View toggle -->
@@ -509,8 +631,96 @@
   </header>
 
   {#if viewMode === 'customers'}
+    <section class="crm-summary-grid" use:enter={{ index: 1 }}>
+      <article class="summary-card card">
+        <span class="summary-label">Customer Revenue</span>
+        <strong class="summary-value">{formatBHD(customerSummary.totalRevenueFils)} BHD</strong>
+        <span class="summary-sub">Across {displayCustomers.length} active customer accounts</span>
+      </article>
+      <article class="summary-card card">
+        <span class="summary-label">Open Exposure</span>
+        <strong class="summary-value summary-value-coral">{formatBHD(customerSummary.totalOutstandingFils)} BHD</strong>
+        <span class="summary-sub">{customerSummary.blockedCount} blocked · {customerSummary.noPipelineCount} with no pipeline</span>
+      </article>
+      <article class="summary-card card">
+        <span class="summary-label">Relationship Hygiene</span>
+        <strong class="summary-value">{displayCustomers.length - customerSummary.missingContactCount}/{displayCustomers.length}</strong>
+        <span class="summary-sub">Accounts with an attached primary contact</span>
+      </article>
+    </section>
+
+    <section class="crm-spotlight-grid" use:enter={{ index: 2 }}>
+      <article class="spotlight-card card">
+        <span class="spotlight-kicker">Top Debtor</span>
+        <h2 class="spotlight-title">{customerSummary.topDebtor?.name ?? '—'}</h2>
+        <p class="spotlight-metric">{customerSummary.topDebtor ? formatBHD(customerSummary.topDebtor.outstandingFils) : '0.000'} BHD outstanding</p>
+        <p class="spotlight-note">{customerSummary.topDebtor?.notes ?? 'No debtor pressure in the current dataset.'}</p>
+      </article>
+      <article class="spotlight-card card">
+        <span class="spotlight-kicker">Largest Account</span>
+        <h2 class="spotlight-title">{customerSummary.topAccount?.name ?? '—'}</h2>
+        <p class="spotlight-metric">{customerSummary.topAccount ? formatBHD(customerSummary.topAccount.totalRevenueFils) : '0.000'} BHD invoiced</p>
+        <p class="spotlight-note">{customerSummary.topAccount?.category ?? 'Category unavailable'}</p>
+      </article>
+      <article class="spotlight-card card spotlight-card-actions">
+        <span class="spotlight-kicker">Quick Lenses</span>
+        <div class="focus-chip-row">
+          <button class="focus-chip" class:focus-chip-active={customerFocus === 'all'} onclick={() => (customerFocus = 'all')}>All</button>
+          <button class="focus-chip" class:focus-chip-active={customerFocus === 'overdue'} onclick={() => (customerFocus = 'overdue')}>Outstanding</button>
+          <button class="focus-chip" class:focus-chip-active={customerFocus === 'blocked'} onclick={() => (customerFocus = 'blocked')}>Blocked</button>
+          <button class="focus-chip" class:focus-chip-active={customerFocus === 'missing-contact'} onclick={() => (customerFocus = 'missing-contact')}>No Contact</button>
+          <button class="focus-chip" class:focus-chip-active={customerFocus === 'no-pipeline'} onclick={() => (customerFocus = 'no-pipeline')}>No Pipeline</button>
+        </div>
+      </article>
+    </section>
+  {:else}
+    <section class="crm-summary-grid" use:enter={{ index: 1 }}>
+      <article class="summary-card card">
+        <span class="summary-label">Supplier Spend</span>
+        <strong class="summary-value">{formatBHD(supplierSummary.totalSpendFils)} BHD</strong>
+        <span class="summary-sub">Across {displaySuppliers.length} supply-side relationships</span>
+      </article>
+      <article class="summary-card card">
+        <span class="summary-label">Open Payables</span>
+        <strong class="summary-value summary-value-coral">{formatBHD(supplierSummary.totalPayableFils)} BHD</strong>
+        <span class="summary-sub">{supplierSummary.advanceOnlyCount} advance-only vendors in the current set</span>
+      </article>
+      <article class="summary-card card">
+        <span class="summary-label">Bank Readiness</span>
+        <strong class="summary-value">{displaySuppliers.length - supplierSummary.missingBankCount}/{displaySuppliers.length}</strong>
+        <span class="summary-sub">Suppliers with bank details ready for payment ops</span>
+      </article>
+    </section>
+
+    <section class="crm-spotlight-grid" use:enter={{ index: 2 }}>
+      <article class="spotlight-card card">
+        <span class="spotlight-kicker">Largest Payable</span>
+        <h2 class="spotlight-title">{supplierSummary.topPayable?.name ?? '—'}</h2>
+        <p class="spotlight-metric">{supplierSummary.topPayable ? formatBHD(supplierSummary.topPayable.payableFils) : '0.000'} BHD open</p>
+        <p class="spotlight-note">{supplierSummary.topPayable?.notes ?? 'No payable pressure in the current dataset.'}</p>
+      </article>
+      <article class="spotlight-card card">
+        <span class="spotlight-kicker">Top Spend Partner</span>
+        <h2 class="spotlight-title">{supplierSummary.topSpend?.name ?? '—'}</h2>
+        <p class="spotlight-metric">{supplierSummary.topSpend ? formatBHD(supplierSummary.topSpend.totalSpendFils) : '0.000'} BHD historical spend</p>
+        <p class="spotlight-note">{supplierSummary.topSpend?.productTypes ?? 'Category unavailable'}</p>
+      </article>
+      <article class="spotlight-card card spotlight-card-actions">
+        <span class="spotlight-kicker">Quick Lenses</span>
+        <div class="focus-chip-row">
+          <button class="focus-chip" class:focus-chip-active={supplierFocus === 'all'} onclick={() => (supplierFocus = 'all')}>All</button>
+          <button class="focus-chip" class:focus-chip-active={supplierFocus === 'payable'} onclick={() => (supplierFocus = 'payable')}>Open Payable</button>
+          <button class="focus-chip" class:focus-chip-active={supplierFocus === 'missing-bank'} onclick={() => (supplierFocus = 'missing-bank')}>Bank Missing</button>
+          <button class="focus-chip" class:focus-chip-active={supplierFocus === 'missing-contact'} onclick={() => (supplierFocus = 'missing-contact')}>No Contact</button>
+          <button class="focus-chip" class:focus-chip-active={supplierFocus === 'advance-only'} onclick={() => (supplierFocus = 'advance-only')}>Advance Only</button>
+        </div>
+      </article>
+    </section>
+  {/if}
+
+  {#if viewMode === 'customers'}
     <!-- Tabs -->
-    <div class="tabs-row" use:enter={{ index: 1 }}>
+    <div class="tabs-row" use:enter={{ index: 3 }}>
       {#each tabs as tab}
         <button
           class="tab-btn"
@@ -526,7 +736,7 @@
     </div>
 
     <!-- Search -->
-    <div class="search-row" use:enter={{ index: 2 }}>
+    <div class="search-row" use:enter={{ index: 4 }}>
       <div class="search-wrap">
         <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
@@ -545,7 +755,7 @@
     </div>
 
     <!-- Customer grid -->
-    <div class="grid-section" use:enter={{ index: 3 }}>
+    <div class="grid-section" use:enter={{ index: 5 }}>
       {#if filteredCustomers.length === 0}
         <div class="empty-state">
           <div class="empty-glyph">&#9675;</div>
@@ -589,6 +799,18 @@
                 </div>
               {/if}
 
+              <div class="card-meta-row">
+                {#if c.code}
+                  <span class="meta-pill">Code {c.code}</span>
+                {/if}
+                {#if c.city}
+                  <span class="meta-pill">{c.city}</span>
+                {/if}
+                {#if c.source}
+                  <span class="meta-pill meta-pill-muted">{c.source}</span>
+                {/if}
+              </div>
+
               <!-- Key metrics row -->
               <div class="metrics-row">
                 <div class="metric card-inset">
@@ -625,6 +847,15 @@
                   <span class="card-activity card-notes">{c.notes}</span>
                 {/if}
               </div>
+
+              <div class="card-action-row">
+                <span class="card-action-hint">{(c.pipelineCount ?? 0)} pipeline item{(c.pipelineCount ?? 0) === 1 ? '' : 's'}</span>
+                {#if useLiveData}
+                  <button class="btn btn-ghost btn-sm card-action-btn" onclick={() => (selected360Id = c.id)}>
+                    Open 360
+                  </button>
+                {/if}
+              </div>
             </div>
           {/each}
         </div>
@@ -641,7 +872,7 @@
 
   {:else}
     <!-- Supplier search -->
-    <div class="search-row" use:enter={{ index: 1 }}>
+    <div class="search-row" use:enter={{ index: 3 }}>
       <div class="search-wrap">
         <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
@@ -660,7 +891,7 @@
     </div>
 
     <!-- Supplier grid -->
-    <div class="grid-section" use:enter={{ index: 2 }}>
+    <div class="grid-section" use:enter={{ index: 4 }}>
       {#if filteredSuppliers.length === 0}
         <div class="empty-state">
           <div class="empty-glyph">&#9675;</div>
@@ -693,6 +924,18 @@
                   {/each}
                 </div>
               {/if}
+
+              <div class="card-meta-row">
+                {#if s.code}
+                  <span class="meta-pill">Code {s.code}</span>
+                {/if}
+                {#if s.category}
+                  <span class="meta-pill">{s.category}</span>
+                {/if}
+                {#if s.city}
+                  <span class="meta-pill">{s.city}</span>
+                {/if}
+              </div>
 
               <!-- Key metrics row -->
               <div class="metrics-row">
@@ -745,6 +988,10 @@
                   <span class="card-activity card-notes" style="max-width: 100%">{s.notes}</span>
                 </div>
               {/if}
+
+              <div class="card-action-row">
+                <span class="card-action-hint">{s.hasBankDetails ? 'Bank-ready' : 'Needs bank details'}</span>
+              </div>
             </div>
           {/each}
         </div>
@@ -805,6 +1052,93 @@
     text-transform: uppercase;
     color: var(--ink-30);
     margin: 0;
+  }
+
+  .crm-summary-grid,
+  .crm-spotlight-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--sp-16);
+  }
+
+  .summary-card,
+  .spotlight-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+    min-height: 148px;
+    padding: var(--sp-18);
+  }
+
+  .summary-label,
+  .spotlight-kicker {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-30);
+  }
+
+  .summary-value,
+  .spotlight-title {
+    font-family: var(--font-display);
+    font-size: clamp(1.25rem, 1.3vw + 1rem, 2rem);
+    line-height: 1;
+    color: var(--ink);
+    margin: 0;
+  }
+
+  .summary-value-coral { color: var(--coral); }
+
+  .summary-sub,
+  .spotlight-note {
+    font-size: var(--text-sm);
+    color: var(--ink-40);
+    line-height: 1.45;
+  }
+
+  .spotlight-metric {
+    font-family: var(--font-data);
+    font-size: var(--text-sm);
+    color: var(--gold);
+    margin: 0;
+  }
+
+  .spotlight-card-actions {
+    justify-content: space-between;
+    background:
+      linear-gradient(135deg, rgba(214, 183, 111, 0.08), rgba(122, 159, 128, 0.05)),
+      var(--paper-card);
+  }
+
+  .focus-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-8);
+  }
+
+  .focus-chip {
+    border: 1px solid var(--ink-08);
+    background: rgba(255, 255, 255, 0.55);
+    border-radius: var(--radius-pill);
+    padding: var(--sp-5) var(--sp-10);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--ink-40);
+    cursor: pointer;
+    transition: all var(--dur-fast) var(--ease-out);
+  }
+
+  .focus-chip:hover {
+    color: var(--ink);
+    border-color: var(--gold-soft);
+  }
+
+  .focus-chip-active {
+    color: var(--gold);
+    border-color: rgba(214, 183, 111, 0.35);
+    background: var(--gold-glow);
+    box-shadow: var(--shadow-neu-sm);
   }
 
   /* ── Grade distribution ── */
@@ -1057,6 +1391,33 @@
     margin-top: calc(-1 * var(--sp-8));
   }
 
+  .card-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-5);
+    margin-top: calc(-1 * var(--sp-8));
+  }
+
+  .meta-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 0 var(--sp-8);
+    border-radius: var(--radius-pill);
+    background: rgba(255, 255, 255, 0.65);
+    border: 1px solid var(--ink-06);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-40);
+  }
+
+  .meta-pill-muted {
+    color: var(--ink-30);
+    background: var(--ink-03);
+  }
+
   /* Metrics row */
   .metrics-row {
     display: grid;
@@ -1168,6 +1529,22 @@
     text-overflow: ellipsis;
   }
 
+  .card-action-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-8);
+  }
+
+  .card-action-hint {
+    font-size: var(--text-xs);
+    color: var(--ink-30);
+  }
+
+  .card-action-btn {
+    padding-inline: var(--sp-10);
+  }
+
   /* ── Show more ── */
   .show-more-row {
     display: flex;
@@ -1274,5 +1651,12 @@
     font-size: var(--text-xs);
     color: var(--ink-60);
     letter-spacing: 0.02em;
+  }
+
+  @media (max-width: 960px) {
+    .crm-summary-grid,
+    .crm-spotlight-grid {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

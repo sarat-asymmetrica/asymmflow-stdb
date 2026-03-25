@@ -336,12 +336,13 @@ export type MoneyEventKind = __Infer<typeof MoneyEventKind>;
 export const Order = __t.object("Order", {
   id: __t.u64(),
   partyId: __t.u64(),
-  pipelineId: __t.u64(),
+  pipelineId: __t.option(__t.u64()),
   get status() {
     return EntityStatus;
   },
   totalFils: __t.u64(),
   poReference: __t.string(),
+  source: __t.string(),
   expectedDelivery: __t.option(__t.timestamp()),
   createdAt: __t.timestamp(),
   updatedAt: __t.timestamp(),
@@ -351,6 +352,8 @@ export type Order = __Infer<typeof Order>;
 export const Party = __t.object("Party", {
   id: __t.u64(),
   name: __t.string(),
+  code: __t.string(),
+  category: __t.string(),
   isCustomer: __t.bool(),
   isSupplier: __t.bool(),
   get grade() {
@@ -361,6 +364,14 @@ export const Party = __t.object("Party", {
   paymentTermsDays: __t.u64(),
   productTypes: __t.string(),
   annualGoalFils: __t.u64(),
+  city: __t.string(),
+  country: __t.string(),
+  phone: __t.string(),
+  email: __t.string(),
+  source: __t.string(),
+  active2024: __t.bool(),
+  active2025: __t.bool(),
+  active2026: __t.bool(),
   notes: __t.string(),
   bankIban: __t.string(),
   bankSwift: __t.string(),
@@ -375,6 +386,18 @@ export const Pipeline = __t.object("Pipeline", {
   partyId: __t.u64(),
   ownerId: __t.identity(),
   title: __t.string(),
+  legacyYear: __t.option(__t.u32()),
+  opportunityNumber: __t.string(),
+  folderNumber: __t.string(),
+  folderName: __t.string(),
+  sfdcTitle: __t.string(),
+  comment: __t.string(),
+  ehReference: __t.string(),
+  paymentTerms: __t.string(),
+  ownerName: __t.string(),
+  source: __t.string(),
+  sourceNotes: __t.string(),
+  deliverySummary: __t.string(),
   get status() {
     return EntityStatus;
   },
@@ -419,6 +442,7 @@ export const PurchaseOrder = __t.object("PurchaseOrder", {
   orderId: __t.option(__t.u64()),
   poNumber: __t.string(),
   deliveryTerms: __t.string(),
+  source: __t.string(),
   get status() {
     return EntityStatus;
   },

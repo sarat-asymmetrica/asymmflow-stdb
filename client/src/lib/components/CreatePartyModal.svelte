@@ -58,6 +58,8 @@
       conn.reducers.upsertParty({
         id: 0n,
         name: trimmedName,
+        code: undefined,
+        category: undefined,
         isCustomer,
         isSupplier,
         grade: { tag: gradeTag } as CustomerGrade,
@@ -65,6 +67,14 @@
         paymentTermsDays: 0n,
         productTypes: productTypes.trim(),
         annualGoalFils: 0n,
+        city: undefined,
+        country: undefined,
+        phone: undefined,
+        email: undefined,
+        source: 'manual_ui',
+        active2024: undefined,
+        active2025: undefined,
+        active2026: undefined,
         // TRN is stored in notes with a structured prefix so it can be
         // parsed later. Format: "TRN:<value>\n<rest of notes>".
         // When TRN is blank the notes field is stored as-is.

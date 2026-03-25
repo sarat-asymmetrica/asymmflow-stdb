@@ -17,6 +17,8 @@ import {
 export default {
   id: __t.u64(),
   name: __t.string(),
+  code: __t.option(__t.string()),
+  category: __t.option(__t.string()),
   isCustomer: __t.bool(),
   isSupplier: __t.bool(),
   get grade() {
@@ -26,6 +28,14 @@ export default {
   paymentTermsDays: __t.u64(),
   productTypes: __t.string(),
   annualGoalFils: __t.u64(),
+  city: __t.option(__t.string()),
+  country: __t.option(__t.string()),
+  phone: __t.option(__t.string()),
+  email: __t.option(__t.string()),
+  source: __t.option(__t.string()),
+  active2024: __t.option(__t.bool()),
+  active2025: __t.option(__t.bool()),
+  active2026: __t.option(__t.bool()),
   notes: __t.string(),
   bankIban: __t.string(),
   bankSwift: __t.string(),

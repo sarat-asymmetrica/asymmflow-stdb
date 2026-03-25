@@ -17,12 +17,13 @@ import {
 export default __t.row({
   id: __t.u64().primaryKey(),
   partyId: __t.u64().name("party_id"),
-  pipelineId: __t.u64().name("pipeline_id"),
+  pipelineId: __t.option(__t.u64()).name("pipeline_id"),
   get status() {
     return EntityStatus;
   },
   totalFils: __t.u64().name("total_fils"),
   poReference: __t.string().name("po_reference"),
+  source: __t.string(),
   expectedDelivery: __t.option(__t.timestamp()).name("expected_delivery"),
   createdAt: __t.timestamp().name("created_at"),
   updatedAt: __t.timestamp().name("updated_at"),

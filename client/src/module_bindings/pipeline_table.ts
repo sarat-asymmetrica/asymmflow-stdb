@@ -19,6 +19,18 @@ export default __t.row({
   partyId: __t.u64().name("party_id"),
   ownerId: __t.identity().name("owner_id"),
   title: __t.string(),
+  legacyYear: __t.option(__t.u32()).name("legacy_year"),
+  opportunityNumber: __t.string().name("opportunity_number"),
+  folderNumber: __t.string().name("folder_number"),
+  folderName: __t.string().name("folder_name"),
+  sfdcTitle: __t.string().name("sfdc_title"),
+  comment: __t.string(),
+  ehReference: __t.string().name("eh_reference"),
+  paymentTerms: __t.string().name("payment_terms"),
+  ownerName: __t.string().name("owner_name"),
+  source: __t.string(),
+  sourceNotes: __t.string().name("source_notes"),
+  deliverySummary: __t.string().name("delivery_summary"),
   get status() {
     return EntityStatus;
   },

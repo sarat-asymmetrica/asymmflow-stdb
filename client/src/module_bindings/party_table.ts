@@ -17,6 +17,8 @@ import {
 export default __t.row({
   id: __t.u64().primaryKey(),
   name: __t.string(),
+  code: __t.string(),
+  category: __t.string(),
   isCustomer: __t.bool().name("is_customer"),
   isSupplier: __t.bool().name("is_supplier"),
   get grade() {
@@ -27,6 +29,14 @@ export default __t.row({
   paymentTermsDays: __t.u64().name("payment_terms_days"),
   productTypes: __t.string().name("product_types"),
   annualGoalFils: __t.u64().name("annual_goal_fils"),
+  city: __t.string(),
+  country: __t.string(),
+  phone: __t.string(),
+  email: __t.string(),
+  source: __t.string(),
+  active2024: __t.bool().name("active_2024"),
+  active2025: __t.bool().name("active_2025"),
+  active2026: __t.bool().name("active_2026"),
   notes: __t.string(),
   bankIban: __t.string().name("bank_iban"),
   bankSwift: __t.string().name("bank_swift"),

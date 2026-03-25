@@ -337,6 +337,165 @@
 
   // ── MTD received (current month) ─────────────────────
 
+  function setFinanceTab(tab: string) {
+    activeTab = tab;
+  }
+
+  let overdueInvoices = $derived.by(() =>
+    [...invoiceRows]
+      .filter((row) => row.status === 'Overdue')
+      .sort((left, right) => (right.outstandingFils > left.outstandingFils ? 1 : right.outstandingFils < left.outstandingFils ? -1 : 0))
+  );
+
+  let sentInvoices = $derived.by(() =>
+    invoiceRows.filter((row) => row.status === 'Sent')
+  );
+
+  let topDebtorInvoice = $derived(overdueInvoices[0] ?? null);
+  let criticalAgingRows = $derived.by(() => {
+    const source = useLiveData ? agingRows : DEMO_AGING;
+    return [...source]
+      .sort((left: any, right: any) => {
+        const leftRisk = (left.d90plusFils ?? left.d90plus ?? 0n) + (left.d90Fils ?? left.d90 ?? 0n);
+        const rightRisk = (right.d90plusFils ?? right.d90plus ?? 0n) + (right.d90Fils ?? right.d90 ?? 0n);
+        return rightRisk > leftRisk ? 1 : rightRisk < leftRisk ? -1 : 0;
+      })
+      .filter((row: any) => ((row.d90plusFils ?? row.d90plus ?? 0n) + (row.d90Fils ?? row.d90 ?? 0n)) > 0n);
+  });
+  let topAgingRisk = $derived(criticalAgingRows[0] ?? null);
+  let topBankTransaction = $derived(filteredBankTransactions[0] ?? null);
+  let bankBacklogCount = $derived(bankReconCounts.unmatched + bankReconCounts.disputed);
+  let tallyReadyCount = $derived(tallyPreview?.readyRows ?? 0);
+
+  let financeHeadline = $derived.by(() => {
+    if (topDebtorInvoice) {
+      return {
+        eyebrow: 'Cash Pressure',
+        title: `${topDebtorInvoice.customer} is the largest overdue exposure`,
+        subtitle: `${topDebtorInvoice.outstanding} BHD remains open on ${topDebtorInvoice.ref}, now ${topDebtorInvoice.overdueDays ?? 0} days past due.`,
+      };
+    }
+    if (bankBacklogCount > 0) {
+      return {
+        eyebrow: 'Cash Pressure',
+        title: `${bankBacklogCount} bank row${bankBacklogCount === 1 ? '' : 's'} still need reconciliation`,
+        subtitle: `Keep cash visibility tight by closing unmatched and disputed transactions before they drift into manual uncertainty.`,
+      };
+    }
+    return {
+      eyebrow: 'Cash Pressure',
+      title: 'Finance is in a controlled state',
+      subtitle: 'Collections, reconciliation, and reporting lanes are ready for the next review cycle.',
+    };
+  });
+
+  let financePriorityDeck = $derived.by(() => {
+    const items: Array<{
+      label: string;
+      title: string;
+      detail: string;
+      tone: 'gold' | 'coral' | 'sage';
+      cta: string;
+      action: () => void;
+    }> = [];
+
+    if (topDebtorInvoice) {
+      items.push({
+        label: 'Collections',
+        title: `${topDebtorInvoice.customer} needs an immediate chase`,
+        detail: `${topDebtorInvoice.outstanding} BHD overdue on ${topDebtorInvoice.ref} · due ${topDebtorInvoice.dueDate}`,
+        tone: 'coral',
+        cta: 'Review Invoices',
+        action: () => setFinanceTab('invoices'),
+      });
+    }
+
+    if (topAgingRisk) {
+      const atRisk = (topAgingRisk as any).d90plusFils ?? (topAgingRisk as any).d90plus ?? 0n;
+      items.push({
+        label: 'Aging Risk',
+        title: `${(topAgingRisk as any).name} dominates the 90+ bucket`,
+        detail: `${fmtBHDRaw(atRisk)} BHD sits in the oldest receivable band and needs escalation framing.`,
+        tone: 'coral',
+        cta: 'Open Aging',
+        action: () => setFinanceTab('aging'),
+      });
+    }
+
+    if (topBankTransaction) {
+      items.push({
+        label: 'Reconciliation',
+        title: `${bankReconCounts.unmatched} unmatched bank row${bankReconCounts.unmatched === 1 ? '' : 's'} remain`,
+        detail: `${formatDate(topBankTransaction.transactionDate)} · ${topBankTransaction.description} · ${fmtBHDRaw(topBankTransaction.amountFils)} BHD`,
+        tone: 'gold',
+        cta: 'Open Bank Recon',
+        action: () => {
+          setFinanceTab('bank');
+          selectedBankTransactionId = topBankTransaction.id;
+        },
+      });
+    }
+
+    if (tallyPreview) {
+      items.push({
+        label: 'Import Desk',
+        title: `${tallyReadyCount} Tally row${tallyReadyCount === 1 ? '' : 's'} are ready to post`,
+        detail: `${tallyPreview.fileName} is parsed with ${tallyPreview.duplicateRows} duplicates and ${tallyPreview.invalidRows} invalid rows flagged.`,
+        tone: tallyReadyCount > 0 ? 'sage' : 'gold',
+        cta: 'Open Tally',
+        action: () => setFinanceTab('tally'),
+      });
+    }
+
+    return items.slice(0, 4);
+  });
+
+  let financeShortcuts = $derived([
+    {
+      label: 'Collections Desk',
+      hint: `${overdueInvoices.length} overdue invoices`,
+      action: () => setFinanceTab('invoices'),
+    },
+    {
+      label: 'Record Receipt',
+      hint: `${fmtBHDRaw(displayReceived)} BHD received`,
+      action: () => (showRecordPayment = true),
+    },
+    {
+      label: 'Bank Recon',
+      hint: `${bankBacklogCount} rows need attention`,
+      action: () => setFinanceTab('bank'),
+    },
+    {
+      label: 'VAT / Aging',
+      hint: `${criticalAgingRows.length} customers in severe aging`,
+      action: () => setFinanceTab('aging'),
+    },
+  ]);
+
+  let financePulse = $derived([
+    {
+      label: 'Outstanding',
+      value: fmtBHDRaw(displayOutstanding),
+      detail: 'BHD still open across receivables',
+    },
+    {
+      label: 'Overdue',
+      value: fmtBHDRaw(overdueAmount),
+      detail: `${overdueInvoices.length} invoices currently overdue`,
+    },
+    {
+      label: 'Reconciliation',
+      value: String(bankBacklogCount),
+      detail: `${bankReconCounts.matched} matched bank rows already closed`,
+    },
+    {
+      label: 'Ready To Post',
+      value: String(tallyReadyCount),
+      detail: tallyPreview ? tallyModeLabel(tallyImportMode) : `${sentInvoices.length} sent invoices awaiting follow-through`,
+    },
+  ]);
+
   let mtdReceived = $derived.by(() => {
     if (useLiveData) return totalReceived;
     // Demo: just show total received as MTD
@@ -723,8 +882,61 @@
     </div>
   </header>
 
+  <section class="command-band" use:enter={{ index: 1 }}>
+    <div class="command-hero card">
+      <div class="command-copy">
+        <p class="command-eyebrow">{financeHeadline.eyebrow}</p>
+        <h2 class="command-title">{financeHeadline.title}</h2>
+        <p class="command-subtitle">{financeHeadline.subtitle}</p>
+      </div>
+      <div class="command-shortcuts">
+        {#each financeShortcuts as shortcut}
+          <button class="command-shortcut" type="button" onclick={shortcut.action}>
+            <span class="command-shortcut-label">{shortcut.label}</span>
+            <span class="command-shortcut-hint">{shortcut.hint}</span>
+          </button>
+        {/each}
+      </div>
+    </div>
+
+    <div class="command-panel card">
+      <div class="command-panel-header">
+        <p class="command-eyebrow">Priority Deck</p>
+        <span class="command-caption">Immediate finance actions</span>
+      </div>
+      <div class="priority-list">
+        {#each financePriorityDeck as item}
+          <article class={`priority-item priority-item--${item.tone}`}>
+            <div class="priority-copy">
+              <p class="priority-label">{item.label}</p>
+              <h3 class="priority-title">{item.title}</h3>
+              <p class="priority-detail">{item.detail}</p>
+            </div>
+            <button class="priority-cta" type="button" onclick={item.action}>{item.cta}</button>
+          </article>
+        {/each}
+      </div>
+    </div>
+
+    <div class="command-panel card">
+      <div class="command-panel-header">
+        <p class="command-eyebrow">Finance Pulse</p>
+        <span class="command-caption">Live cash and control view</span>
+      </div>
+      <div class="pulse-grid">
+        {#each financePulse as item}
+          <article class="pulse-card">
+            <span class="pulse-label">{item.label}</span>
+            <strong class="pulse-value">{item.value}</strong>
+            <span class="pulse-detail">{item.detail}</span>
+          </article>
+        {/each}
+      </div>
+    </div>
+  </section>
+
   <!-- Tabs -->
-  <div class="tabs-row" use:enter={{ index: 1 }}>
+  <div class="tabs-row" use:enter={{ index: 2 }}>
     {#each tabs as tab}
       <button
         class="tab-btn"
@@ -737,7 +949,7 @@
   </div>
 
   <!-- Tab Content -->
-  <div class="tab-content" use:enter={{ index: 2 }}>
+  <div class="tab-content" use:enter={{ index: 3 }}>
 
     <!-- INVOICES TAB -->
     {#if activeTab === 'invoices'}
@@ -1599,6 +1811,238 @@
     flex-shrink: 0;
   }
 
+  .command-band {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr) minmax(260px, 0.9fr);
+    gap: var(--sp-13);
+    align-items: stretch;
+  }
+
+  .command-hero {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--sp-16);
+    padding: var(--sp-18);
+    background:
+      radial-gradient(circle at top right, rgba(196, 121, 107, 0.14), transparent 36%),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(245, 241, 233, 0.98));
+  }
+
+  .command-copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+  }
+
+  .command-eyebrow {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-40);
+  }
+
+  .command-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(1.75rem, 2.25vw, 2.5rem);
+    line-height: 0.98;
+    letter-spacing: -0.04em;
+    color: var(--ink);
+    max-width: 13ch;
+  }
+
+  .command-subtitle {
+    margin: 0;
+    max-width: 58ch;
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+    color: var(--ink-60);
+  }
+
+  .command-shortcuts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-8);
+  }
+
+  .command-shortcut {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-3);
+    padding: var(--sp-13);
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.72);
+    text-align: left;
+    cursor: pointer;
+    transition: transform var(--dur-fast) var(--ease-out),
+      box-shadow var(--dur-fast) var(--ease-out),
+      border-color var(--dur-fast) var(--ease-out);
+  }
+
+  .command-shortcut:hover {
+    transform: translateY(-1px);
+    border-color: rgba(197, 160, 89, 0.24);
+    box-shadow: var(--shadow-neu-raised);
+  }
+
+  .command-shortcut-label {
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .command-shortcut-hint {
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+    line-height: 1.45;
+    color: var(--ink-40);
+  }
+
+  .command-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-13);
+    padding: var(--sp-16);
+  }
+
+  .command-panel-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-8);
+  }
+
+  .command-caption {
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+    color: var(--ink-40);
+  }
+
+  .priority-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+  }
+
+  .priority-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-10);
+    padding: var(--sp-13);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(17, 24, 39, 0.06);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(249, 247, 242, 0.82));
+  }
+
+  .priority-item--gold {
+    box-shadow: inset 3px 0 0 rgba(197, 160, 89, 0.55);
+  }
+
+  .priority-item--coral {
+    box-shadow: inset 3px 0 0 rgba(210, 102, 93, 0.55);
+  }
+
+  .priority-item--sage {
+    box-shadow: inset 3px 0 0 rgba(95, 140, 110, 0.55);
+  }
+
+  .priority-copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+  }
+
+  .priority-label {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-40);
+  }
+
+  .priority-title {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: var(--text-md);
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .priority-detail {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+    line-height: 1.55;
+    color: var(--ink-60);
+  }
+
+  .priority-cta {
+    align-self: flex-start;
+    height: 34px;
+    padding: 0 var(--sp-13);
+    border: none;
+    border-radius: var(--radius-pill);
+    background: var(--paper-card);
+    box-shadow: var(--shadow-neu-btn);
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gold);
+    cursor: pointer;
+  }
+
+  .pulse-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-8);
+  }
+
+  .pulse-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: var(--sp-10);
+    border-radius: var(--radius-md);
+    background: var(--paper-elevated);
+    box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.04);
+  }
+
+  .pulse-label {
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-40);
+  }
+
+  .pulse-value {
+    font-family: var(--font-data);
+    font-size: var(--text-lg);
+    font-weight: 500;
+    color: var(--ink);
+    letter-spacing: -0.03em;
+  }
+
+  .pulse-detail {
+    font-family: var(--font-ui);
+    font-size: var(--text-xs);
+    line-height: 1.45;
+    color: var(--ink-40);
+  }
+
   .btn-sm {
     padding: var(--sp-8) var(--sp-13);
     font-size: var(--text-sm);
@@ -2278,9 +2722,17 @@
   }
 
   @media (max-width: 980px) {
+    .command-band,
     .bank-summary-grid,
     .bank-recon-grid,
     .tally-result-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 820px) {
+    .command-shortcuts,
+    .pulse-grid {
       grid-template-columns: 1fr;
     }
   }
